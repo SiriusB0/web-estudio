@@ -122,7 +122,7 @@ export const validateInvitationCode = async (code: string): Promise<boolean> => 
 };
 
 // Marcar código como usado (después de registro exitoso)
-export const useInvitationCode = async (code: string, userId: string): Promise<boolean> => {
+export const markInvitationCodeAsUsed = async (code: string, userId: string): Promise<boolean> => {
   try {
     const { data, error } = await supabase.rpc('use_invitation_code', {
       invitation_code: code,
@@ -136,7 +136,7 @@ export const useInvitationCode = async (code: string, userId: string): Promise<b
     
     return data === true;
   } catch (error) {
-    console.error('Error en useInvitationCode:', error);
+    console.error('Error en markInvitationCodeAsUsed:', error);
     return false;
   }
 };

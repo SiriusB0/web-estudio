@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { supabase, usernameToEmail } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { validateInvitationCode, useInvitationCode } from "@/lib/invitations";
+import { validateInvitationCode, markInvitationCodeAsUsed } from "@/lib/invitations";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -41,7 +41,7 @@ export default function SignupPage() {
       if (!user) throw new Error("No se pudo obtener el usuario tras el registro");
 
       // Marcar código como usado
-      const codeUsed = await useInvitationCode(invitationCode.trim().toUpperCase(), user.id);
+      const codeUsed = await markInvitationCodeAsUsed(invitationCode.trim().toUpperCase(), user.id);
       if (!codeUsed) {
         // Si no se pudo marcar el código, eliminar el usuario creado
         await supabase.auth.admin.deleteUser(user.id);
