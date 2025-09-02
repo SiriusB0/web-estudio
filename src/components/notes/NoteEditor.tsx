@@ -363,22 +363,39 @@ export default function NoteEditor({
     buildColorDecorations(view: EditorView) {
       const decorations: any[] = [];
       const doc = view.state.doc;
-      const text = doc.toString();
+      
+      // OPTIMIZACIÓN: Solo procesar el rango visible + un buffer pequeño
+      const visibleRanges = view.visibleRanges;
+      if (visibleRanges.length === 0) return Decoration.set([]);
+      
+      // Calcular rango extendido con buffer de 500 caracteres
+      const bufferSize = 500;
+      const firstVisible = Math.max(0, visibleRanges[0].from - bufferSize);
+      const lastVisible = Math.min(doc.length, visibleRanges[visibleRanges.length - 1].to + bufferSize);
+      
+      // Extraer solo el texto del rango visible
+      const visibleText = doc.sliceString(firstVisible, lastVisible);
       
       // Buscar patrones de <span style="color: #...">texto</span>
       const colorRegex = /<span\s+style="color:\s*(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)"\s*>(.*?)<\/span>/g;
       let match;
       const matches = [];
       
-      // Recopilar todas las coincidencias primero
-      while ((match = colorRegex.exec(text)) !== null) {
+      // Recopilar coincidencias en el rango visible
+      while ((match = colorRegex.exec(visibleText)) !== null) {
         const fullMatch = match[0];
         const color = match[1];
         const innerText = match[2];
-        const startPos = match.index;
-        const endPos = startPos + fullMatch.length;
-        const innerStart = startPos + fullMatch.indexOf(innerText);
-        const innerEnd = innerStart + innerText.length;
+        const relativeStartPos = match.index;
+        const relativeEndPos = relativeStartPos + fullMatch.length;
+        const relativeInnerStart = relativeStartPos + fullMatch.indexOf(innerText);
+        const relativeInnerEnd = relativeInnerStart + innerText.length;
+        
+        // Convertir posiciones relativas a absolutas
+        const startPos = firstVisible + relativeStartPos;
+        const endPos = firstVisible + relativeEndPos;
+        const innerStart = firstVisible + relativeInnerStart;
+        const innerEnd = firstVisible + relativeInnerEnd;
         
         matches.push({
           startPos,
@@ -390,10 +407,7 @@ export default function NoteEditor({
         });
       }
       
-      // Ordenar por posición de inicio
-      matches.sort((a, b) => a.startPos - b.startPos);
-      
-      // Crear decoraciones en orden
+      // Crear decoraciones en orden (ya están ordenadas por el regex)
       for (const match of matches) {
         // Etiqueta de apertura
         decorations.push(
