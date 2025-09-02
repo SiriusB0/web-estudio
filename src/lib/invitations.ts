@@ -102,23 +102,21 @@ export const getAllInvitationCodes = async (): Promise<InvitationCode[]> => {
   }
 };
 
-// Obtener detalles del código de invitación (para registro)
-export const getInvitationCodeDetails = async (code: string): Promise<InvitationCode | null> => {
+// Obtener el ID del creador de un código de invitación (para clonación)
+export const getInvitationCodeCreator = async (code: string): Promise<string | null> => {
   try {
-    const { data, error } = await supabase
-      .from('invitation_codes')
-      .select('*')
-      .eq('code', code)
-      .single();
+    const { data, error } = await supabase.rpc('get_invitation_code_creator', {
+      invitation_code: code
+    });
 
     if (error) {
-      console.error('Error obteniendo detalles del código:', error);
+      console.error('Error obteniendo creador del código:', error);
       return null;
     }
 
     return data;
   } catch (error) {
-    console.error('Error en getInvitationCodeDetails:', error);
+    console.error('Error en getInvitationCodeCreator:', error);
     return null;
   }
 };

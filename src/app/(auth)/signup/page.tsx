@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { supabase, usernameToEmail } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { validateInvitationCode, getInvitationCodeDetails, markInvitationCodeAsUsed } from "@/lib/invitations";
+import { validateInvitationCode, getInvitationCodeCreator, markInvitationCodeAsUsed } from "@/lib/invitations";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -29,12 +29,11 @@ export default function SignupPage() {
         throw new Error("Código de invitación inválido, usado o expirado");
       }
 
-      // 2. Obtener detalles del código para la clonación
-      const codeDetails = await getInvitationCodeDetails(invitationCode.trim().toUpperCase());
-      if (!codeDetails) {
-        throw new Error("Error obteniendo detalles del código de invitación");
+      // 2. Obtener ID del creador del código para la clonación
+      const sourceUserId = await getInvitationCodeCreator(invitationCode.trim().toUpperCase());
+      if (!sourceUserId) {
+        throw new Error("Error obteniendo el creador del código de invitación");
       }
-      const sourceUserId = codeDetails.created_by; // ID del admin que creó el código
 
       // 3. Crear el nuevo usuario en Supabase Auth
       const email = usernameToEmail(username.trim());

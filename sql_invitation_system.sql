@@ -101,6 +101,23 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Función para obtener el ID del creador de un código de invitación válido
+CREATE OR REPLACE FUNCTION get_invitation_code_creator(invitation_code TEXT)
+RETURNS UUID AS $$
+DECLARE
+    creator_id UUID;
+BEGIN
+    SELECT created_by INTO creator_id
+    FROM public.invitation_codes 
+    WHERE code = invitation_code 
+    AND is_active = TRUE 
+    AND used_at IS NULL 
+    AND expires_at > NOW();
+    
+    RETURN creator_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- Función para limpiar códigos expirados (ejecutar periódicamente)
 CREATE OR REPLACE FUNCTION cleanup_expired_codes()
 RETURNS INTEGER AS $$
