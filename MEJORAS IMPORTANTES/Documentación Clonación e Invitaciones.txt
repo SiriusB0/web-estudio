@@ -1,0 +1,152 @@
+# Documentación: Clonación de Contenido e Invitaciones
+
+Este documento describe cómo funciona la clonación de contenido cuando nuevos usuarios se registran con un código de invitación, y cómo puedes crear usuarios administradores que generen códigos propios para que sus invitados reciban su contenido clonado.
+
+----------------------------------------
+1) Resumen del funcionamiento
+----------------------------------------
+- Un usuario (normalmente admin) genera un código de invitación.
+- Una persona se registra con ese código en la web.
+- El sistema identifica al CREADOR del código de invitación y clona su contenido al nuevo usuario:
+  - Folders, Notas, Decks (solo los vinculados a notas), Cards, Enlaces entre notas y Decks, e Imágenes de flashcards.
+- El nuevo usuario queda con contenido propio, totalmente independiente, pero idéntico al del creador del código en el momento de la clonación.
+
+----------------------------------------
+2) ¿Quién es el "usuario origen" de la clonación?
+----------------------------------------
+- Siempre es el usuario que creó el código de invitación.
+- No es estrictamente necesario que sea "admin", pero normalmente solo los admins pueden crear códigos.
+- Si tú creas un usuario y le das permisos para generar invitaciones, cualquier persona que use sus códigos recibirá el contenido clonado de ese usuario.
+
+----------------------------------------
+3) Flujo técnico (alto nivel)
+----------------------------------------
+- Frontend (registro): `src/app/(auth)/signup/page.tsx`
+  - Valida el código de invitación.
+  - Llama a `get_invitation_code_creator` para obtener el `source_user_id` (creador del código).
+  - Tras crear la cuenta del invitado, ejecuta `clone_user_data(source_user_id, target_user_id)`.
+
+- Backend/SQL:
+  - `sql_invitation_system.sql`: incluye la función `get_invitation_code_creator(TEXT)` con SECURITY DEFINER.
+  - `sql_clone_user_data.sql`: define `clone_user_data(UUID, UUID)` (SECURITY DEFINER) y `get_user_content_stats(UUID)`.
+  - Permisos: `ALTER FUNCTION ... OWNER TO postgres` y `GRANT EXECUTE ... TO authenticated` para evitar errores por RLS/roles.
+
+----------------------------------------
+4) Alcance de la clonación (qué se copia)
+----------------------------------------
+- Folders (estructura jerárquica, respetando parent/child).
+- Notas (con su folder mapeado si aplica).
+- Decks: solo los decks que están vinculados a notas (para evitar inconsistencias).
+- Cards: solo las de esos decks vinculados, preservando su relación con el nuevo deck.
+- Note_links (enlaces entre notas), solo si ambas notas existen en el mapeo.
+- Note_deck_links (relación nota-deck) para mantener coherencia UI.
+- Imágenes de flashcards (`flashcard_images`) asociadas a las cards clonadas.
+
+Nota: Todo se inserta con el `target_user_id` como dueño y con nuevos IDs, sin afectar los datos del usuario origen.
+
+----------------------------------------
+5) Seguridad y permisos
+----------------------------------------
+- Las funciones clave tienen `SECURITY DEFINER` para ejecutarse con permisos suficientes y evitar bloqueos por RLS.
+- Se recomienda owner `postgres` y `GRANT EXECUTE` al rol `authenticated` (el que usa tu app). Esto está aplicado en `sql_clone_user_data.sql`.
+
+----------------------------------------
+6) Crear usuarios que generen invitaciones ("admins")
+----------------------------------------
+- Si tu política de negocio indica que solo "admins" pueden generar códigos, bastará con darles ese permiso (vía rol/flag en tu app o en tu panel de admin).
+- Técnicamente, lo importante es que el usuario pueda crear códigos de invitación; el flujo usará a ese usuario como fuente de clonación.
+
+----------------------------------------
+7) Verificación sin modificar datos
+----------------------------------------
+- Usa `get_user_content_stats(user_id)` para ver conteos rápidos tras una clonación:
+  - `SELECT get_user_content_stats('UUID_USUARIO');`
+- Ejecuta el script `sql_verify_clone.sql` para validaciones más completas (nota→deck→cards, orphans, imágenes). No modifica datos.
+
+----------------------------------------
+8) Buenas prácticas
+----------------------------------------
+- Genera códigos desde el usuario cuyo contenido quieres propagar.
+- Verifica con `sql_verify_clone.sql` tras cambios de estructura.
+- Mantén `sql_clone_user_data.sql` desplegado igual en dev y prod.
+- Evita editar manualmente datos del nuevo usuario durante la clonación.
+
+----------------------------------------
+9) Solución de problemas comunes
+----------------------------------------
+- "No aparecen las flashcards": asegúrate de estar clonando decks vinculados a notas (ya corregido en la función) y de tener mapeos correctos.
+- "Permisos/RLS": revisa `OWNER TO postgres` y `GRANT EXECUTE` en `sql_clone_user_data.sql`.
+- "Código de invitación inválido/expirado": se resuelve usando `get_invitation_code_creator` (SECURITY DEFINER) en lugar de leer tablas directamente.
+
+----------------------------------------
+10) Archivos y funciones clave en el proyecto
+----------------------------------------
+- `src/app/(auth)/signup/page.tsx` → flujo de registro y llamada a clonación.
+- `src/lib/invitations.ts` → invocación a `get_invitation_code_creator` y helpers.
+- `sql_invitation_system.sql` → funciones y seguridad del sistema de invitaciones.
+- `sql_clone_user_data.sql` → clonación completa de datos y permisos.
+- `sql_verify_clone.sql` → verificación solo-lectura.
+
+Con esto, puedes crear usuarios con permisos para generar invitaciones; los invitados que se registren con esos códigos recibirán automáticamente el contenido clonado del creador del código, manteniendo relaciones y datos completos para que la UI funcione correctamente.
+
+----------------------------------------
+11) Ejemplos y consultas típicas (solo-lectura)
+----------------------------------------
+- Resumen por usuario (conteos):
+```sql
+SELECT get_user_content_stats('UUID_USUARIO');
+```
+
+- Nota → Deck → #Cards (del usuario destino):
+```sql
+SELECT 
+  n.title AS note_title,
+  d.name AS deck_name,
+  COUNT(c.id) AS cards_in_deck
+FROM public.notes n
+JOIN public.note_deck_links ndl ON ndl.note_id = n.id
+JOIN public.decks d ON d.id = ndl.deck_id
+LEFT JOIN public.cards c ON c.deck_id = d.id
+WHERE n.owner_id = 'UUID_TARGET'
+GROUP BY n.title, d.name
+ORDER BY n.title, d.name;
+```
+
+- Decks del destino sin nota vinculada (esperado: 0 filas):
+```sql
+SELECT d.id, d.name
+FROM public.decks d
+LEFT JOIN public.note_deck_links ndl ON ndl.deck_id = d.id
+LEFT JOIN public.notes n ON n.id = ndl.note_id
+WHERE d.owner_id = 'UUID_TARGET'
+GROUP BY d.id, d.name
+HAVING COUNT(n.id) = 0
+ORDER BY d.created_at;
+```
+
+- Cards del destino no asociadas a decks vinculados a notas (esperado: 0 filas):
+```sql
+SELECT c.id, c.created_at
+FROM public.cards c
+JOIN public.decks d ON d.id = c.deck_id
+LEFT JOIN public.note_deck_links ndl ON ndl.deck_id = d.id
+LEFT JOIN public.notes n ON n.id = ndl.note_id
+WHERE d.owner_id = 'UUID_TARGET'
+GROUP BY c.id, c.created_at
+HAVING COUNT(n.id) = 0
+ORDER BY c.created_at;
+```
+
+- Conteos de imágenes de flashcards del destino:
+```sql
+SELECT 
+  (SELECT COUNT(*) FROM public.flashcard_images fi
+   JOIN public.cards c ON c.id = fi.card_id
+   JOIN public.decks d ON d.id = c.deck_id
+   WHERE d.owner_id = 'UUID_TARGET') AS images_total,
+  (SELECT COUNT(*) FROM public.cards c
+   JOIN public.decks d ON d.id = c.deck_id
+   WHERE d.owner_id = 'UUID_TARGET' AND (c.front_image_url IS NOT NULL OR c.back_image_url IS NOT NULL)) AS cards_with_img_fields;
+```
+
+Tip: sustituye `UUID_USUARIO`/`UUID_TARGET` por el ID real. Para una verificación completa, usa también `sql_verify_clone.sql`.

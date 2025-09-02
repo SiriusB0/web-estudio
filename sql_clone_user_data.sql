@@ -123,11 +123,13 @@ BEGIN
         cloned_notes := cloned_notes + 1;
     END LOOP;
 
-    -- ========== 4. CLONAR DECKS ==========
+    -- ========== 4. CLONAR DECKS (solo los vinculados a notas) ==========
     FOR source_deck IN 
-        SELECT * FROM public.decks 
-        WHERE owner_id = source_user_id
-        ORDER BY created_at
+        SELECT DISTINCT d.* FROM public.decks d
+        JOIN public.note_deck_links ndl ON d.id = ndl.deck_id
+        JOIN public.notes n ON ndl.note_id = n.id
+        WHERE n.owner_id = source_user_id
+        ORDER BY d.created_at
     LOOP
         INSERT INTO public.decks (owner_id, name, is_public, created_at)
         VALUES (target_user_id, source_deck.name, source_deck.is_public, NOW())
@@ -137,11 +139,14 @@ BEGIN
         cloned_decks := cloned_decks + 1;
     END LOOP;
 
-    -- ========== 5. CLONAR CARDS ==========
+    -- ========== 5. CLONAR CARDS (solo de decks vinculados a notas) ==========
     FOR source_card IN 
-        SELECT * FROM public.cards 
-        WHERE deck_id IN (SELECT id FROM public.decks WHERE owner_id = source_user_id)
-        ORDER BY created_at
+        SELECT c.* FROM public.cards c
+        JOIN public.decks d ON c.deck_id = d.id
+        JOIN public.note_deck_links ndl ON d.id = ndl.deck_id
+        JOIN public.notes n ON ndl.note_id = n.id
+        WHERE n.owner_id = source_user_id
+        ORDER BY c.created_at
     LOOP
         INSERT INTO public.cards (
             deck_id, front, back, front_image_url, back_image_url, 
@@ -293,3 +298,21 @@ $$;
 
 COMMENT ON FUNCTION get_user_content_stats(UUID) IS 
 'Obtiene estadísticas del contenido de un usuario para verificar la clonación.';
+
+
+-- ===============================================
+-- PERMISOS Y PROPIETARIO (NO AFECTA LA LÓGICA NI LA UI)
+-- ===============================================
+-- Asegura que las funciones tengan un owner estable y que puedan ejecutarse
+-- desde clientes autenticados. Ajusta los roles según tu necesidad.
+
+-- Propietario recomendado para SECURITY DEFINER
+ALTER FUNCTION public.clone_user_data(UUID, UUID) OWNER TO postgres;
+ALTER FUNCTION public.get_user_content_stats(UUID) OWNER TO postgres;
+
+-- Permitir ejecución a roles de aplicación
+GRANT EXECUTE ON FUNCTION public.clone_user_data(UUID, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_content_stats(UUID) TO authenticated;
+
+-- Opcional: permitir a 'anon' si necesitas invocar stats desde cliente público
+-- GRANT EXECUTE ON FUNCTION public.get_user_content_stats(UUID) TO anon;

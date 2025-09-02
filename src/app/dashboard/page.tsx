@@ -33,6 +33,9 @@ export default function DashboardPage() {
       if (!isMounted) return;
       setSessionUserId(user.id);
 
+      // Actualizar la última vez que se vio al usuario
+      supabase.rpc('update_last_seen').then();
+
       // Verificar si es admin
       const adminStatus = await isAdmin();
       setUserIsAdmin(adminStatus);
@@ -92,30 +95,30 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
+    <div className="min-h-screen bg-gray-900 text-gray-300">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200/50">
+      <header className="bg-gray-800/80 backdrop-blur-sm border-b border-gray-700/50">
         <div className="max-w-2xl mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-medium text-gray-900">Panel de Control</h1>
+            <h1 className="text-lg font-medium text-gray-100">Panel de Control</h1>
             <div className="flex items-center space-x-4">
               <a 
                 href="/editor" 
-                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white rounded border border-gray-300 hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-300 bg-gray-700 rounded border border-gray-600 hover:bg-gray-600 transition-colors"
               >
                 Mi sitio de Estudio
               </a>
               {userIsAdmin && (
                 <a 
                   href="/dashboard/invitations" 
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 rounded border border-blue-300 hover:bg-blue-100 transition-colors"
+                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-300 bg-blue-900/50 rounded border border-blue-500/50 hover:bg-blue-800/50 transition-colors"
                 >
                   Invitaciones
                 </a>
               )}
               <button 
                 onClick={handleLogout}
-                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                className="text-sm font-medium text-gray-400 hover:text-white transition-colors"
               >
                 Cerrar sesión
               </button>
@@ -127,7 +130,7 @@ export default function DashboardPage() {
       {/* Main Content */}
       <main className="max-w-2xl mx-auto px-6 py-8">
         {profile ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 p-6">
             <div className="flex items-center mb-6">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
                 <span className="text-white font-medium">
@@ -135,14 +138,14 @@ export default function DashboardPage() {
                 </span>
               </div>
               <div className="ml-3">
-                <h2 className="text-lg font-medium text-gray-900">Configuración de Cuenta</h2>
-                <p className="text-sm text-gray-500">Gestiona tu información personal</p>
+                <h2 className="text-lg font-medium text-gray-100">Configuración de Cuenta</h2>
+                <p className="text-sm text-gray-400">Gestiona tu información personal</p>
               </div>
             </div>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Nombre de usuario
                 </label>
                 <input
@@ -150,35 +153,35 @@ export default function DashboardPage() {
                   value={newUsername}
                   onChange={(e) => setNewUsername(e.target.value)}
                   minLength={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 focus:bg-white"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 />
               </div>
               
               <button
                 onClick={handleUpdateUsername}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium py-2 px-4 rounded hover:from-blue-700 hover:to-indigo-700 transition-colors"
+                className="bg-blue-600 text-white font-medium py-2 px-4 rounded hover:bg-blue-500 transition-colors"
               >
                 Actualizar Perfil
               </button>
               
               {message && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded">
-                  <p className="text-sm text-green-800 font-medium">{message}</p>
+                <div className="p-3 bg-green-900/20 border border-green-500/30 rounded">
+                  <p className="text-sm text-green-400 font-medium">{message}</p>
                 </div>
               )}
               
-              <div className="pt-4 border-t border-gray-200">
+              <div className="pt-4 border-t border-gray-700">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <label className="block font-medium text-gray-700 mb-1">ID de Usuario</label>
-                    <code className="text-xs text-gray-600 font-mono break-all bg-gray-50 px-2 py-1 rounded block">
+                    <label className="block font-medium text-gray-300 mb-1">ID de Usuario</label>
+                    <code className="text-xs text-gray-400 font-mono break-all bg-gray-700 px-2 py-1 rounded block">
                       {profile.id}
                     </code>
                   </div>
                   {profile.created_at && (
                     <div>
-                      <label className="block font-medium text-gray-700 mb-1">Cuenta creada</label>
-                      <p className="text-gray-600">
+                      <label className="block font-medium text-gray-300 mb-1">Cuenta creada</label>
+                      <p className="text-gray-400">
                         {new Date(profile.created_at).toLocaleDateString('es-ES', {
                           year: 'numeric',
                           month: 'short',
@@ -192,9 +195,9 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Perfil no encontrado</h3>
-            <p className="text-gray-600">No se pudo cargar la información de tu cuenta.</p>
+          <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 p-6 text-center">
+            <h3 className="text-lg font-medium text-gray-100 mb-2">Perfil no encontrado</h3>
+            <p className="text-gray-400">No se pudo cargar la información de tu cuenta.</p>
           </div>
         )}
       </main>
