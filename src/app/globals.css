@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+:root {
+  --background: #4a5568;
+  --foreground: #e2e8f0;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Estilos para efecto flip de flashcards */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Flashcard frontal y trasera */
+.flashcard-front {
+  transform: rotateY(0deg);
+}
+
+.flashcard-back {
+  transform: rotateY(180deg);
+}
+
+/* Mejorar selección de texto en CodeMirror */
+.cm-editor .cm-selectionBackground {
+  background-color: #3b82f6 !important;
+  opacity: 0.8 !important;
+}
+
+.cm-editor.cm-focused .cm-selectionBackground {
+  background-color: #2563eb !important;
+  opacity: 0.9 !important;
+}
+
+.cm-editor .cm-content ::selection {
+  background-color: #3b82f6 !important;
+  color: white !important;
+}
+
+.cm-editor .cm-line ::selection {
+  background-color: #3b82f6 !important;
+  color: white !important;
+}

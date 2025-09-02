@@ -1,0 +1,43 @@
+# Checklist de Deploy (Next.js + Supabase)
+
+## 1) Pre-flight en local (dev)
+- **.env.local** OK con:
+  - NEXT_PUBLIC_SUPABASE_URL=
+  - NEXT_PUBLIC_SUPABASE_ANON_KEY=
+- **Build local** sin errores: `npm run build`
+- Rutas principales verificadas: `/editor`, `/dashboard`, `/notes`
+- Pruebas básicas: crear carpeta/nota, wikilinks en preview, navegación.
+
+## 2) Proyecto Supabase (producción)
+- Crear proyecto "prod" separado de "dev" (recomendado).
+- Copiar variables a **.env.prod** o variables del proveedor (Vercel/Netlify):
+  - NEXT_PUBLIC_SUPABASE_URL= (del proyecto prod)
+  - NEXT_PUBLIC_SUPABASE_ANON_KEY= (del proyecto prod)
+- Tablas mínimas creadas y con RLS:
+  - profiles, folders, notes, note_links
+- Aplicar políticas RLS y SQL “seguros” (sin wipes). No ejecutar scripts de limpieza.
+- Activar backups automáticos (o programar export manual periódico).
+
+## 3) Proveedor de hosting (Vercel/Netlify)
+- Crear proyecto y conectar repo (o subir manualmente).
+- Configurar **Variables de entorno** de producción.
+- Framework: Next.js; Build command: `npm run build`; Output: `.next` (por defecto).
+- Deploy de prueba (preview) y smoke test (ver punto 4).
+
+## 4) Smoke test post-deploy (prod)
+- Abrir app prod y comprobar:
+  - Login/registro (si aplica) y carga de perfil.
+  - Crear carpeta y nota -> guardar OK.
+  - Editor Markdown y preview -> render OK.
+  - Wikilinks [[...]] -> autocompletado y navegación OK.
+  - Enlaces externos/internos -> se diferencian SOLO por color (sin iconos).
+- Revisar consola del navegador y logs del proveedor.
+
+## 5) Estrategia de actualizaciones
+- Frontend: redeploy libre, **no toca datos**.
+- Cambios de BD: seguir “Guía de Migraciones Seguras”.
+- Antes de cambios mayores: crear backup en Supabase.
+
+## 6) Rollback rápido
+- Mantener último build estable marcado.
+- Si sucede un error grave: revert a build previo, luego investigar.

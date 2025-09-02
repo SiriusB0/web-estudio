@@ -1,0 +1,385 @@
+# Documentación: Colores y Tamaños de Headers (Editor y Vista Previa)
+
+Este documento explica los cambios realizados para controlar los COLORES y TAMAÑOS de los encabezados (H1–H6) tanto en el EDITOR (CodeMirror) como en la VISTA PREVIA (ReactMarkdown), y cómo modificarlos en el futuro.
+
+========================================
+1) COLORES – Fuente Única de la Verdad
+========================================
+
+Archivo: src/lib/theme.ts
+- Exporta dos objetos:
+  - headerColors: Usado por el EDITOR (CodeMirror) a través de customSyntaxHighlighting.
+  - headerTextClasses: Usado por la VISTA PREVIA (ReactMarkdown) para asignar clases Tailwind por nivel.
+
+Colores actuales:
+- H1: #63B3ED (blue.300)
+- H2: #4299E1 (blue.400)
+- H3: #9F7AEA (purple.400)
+- H4: #805AD5 (purple.500)
+- H5: #ED8936 (orange.400)
+- H6: #DD6B20 (orange.500)
+
+Cómo CAMBIAR colores:
+- Editor: cambiar los hex en headerColors (h1..h6)
+- Vista previa: cambiar los hex en headerTextClasses (clases text-[#...])
+  Nota: Mantener ambos sincronizados para consistencia.
+
+========================================
+2) EDITOR (CodeMirror) – Colores de Headers
+========================================
+
+Archivo: src/components/notes/NoteEditor.tsx
+
+Cambios realizados:
+- Se reemplazó el tema oneDark por un tema propio: customDarkTheme.
+- Se definió un HighlightStyle propio: customSyntaxHighlighting, que:
+  - Colorea H1–H6 con los valores de headerColors de theme.ts
+  - Mantiene colores estilo oneDark para el resto de la sintaxis.
+- Se aplicó en ambas instancias de CodeMirror:
+  extensions: [markdown(), EditorView.lineWrapping, syntaxHighlighting(customSyntaxHighlighting)]
+  theme: customDarkTheme
+
+Cómo CAMBIAR colores de headers en el EDITOR:
+- Editar src/lib/theme.ts > headerColors (h1..h6). Se reflejará automáticamente.
+
+Cómo CAMBIAR TAMAÑOS en el EDITOR:
+- Los tamaños del editor provienen del CSS/tema de CodeMirror y del zoom general. Si deseas forzar tamaños específicos por nivel dentro del editor (no usual en MD plano), deberías:
+  1) Agregar estilos CSS por token de heading con EditorView.theme, por ejemplo:
+     EditorView.theme({
+       '.cm-heading.cm-h1': { fontSize: '2rem' },
+       '.cm-heading.cm-h2': { fontSize: '1.75rem' },
+       ...
+     })
+  2) O ajustar el tamaño base del editor con clases Tailwind en el contenedor (p.ej. text-base, text-lg, etc.).
+
+========================================
+3) VISTA PREVIA (ReactMarkdown) – Colores y Tamaños
+========================================
+
+Archivo: src/components/notes/NotePreview.tsx
+
+Colores:
+- Se usa headerTextClasses de theme.ts: asigna text-[#...] por nivel.
+  Ej.: const colorClass = headerTextClasses[section.level] || 'text-gray-300'
+
+Tamaños:
+- Base definido en NotePreview.tsx:
+  const baseHeaderClasses = {
+    1: "text-4xl font-bold mb-4",
+    2: "text-3xl font-bold mb-3",
+    3: "text-2xl font-bold mb-3",
+    4: "text-xl font-bold mb-2",
+    5: "text-lg font-bold mb-2",
+    6: "text-base font-bold mb-2"
+  }
+- Se componen así: `${colorClass} ${baseClass}`
+
+Cómo CAMBIAR COLORES en la VISTA PREVIA:
+- Editar src/lib/theme.ts > headerTextClasses (niveles 1..6)
+  Ejemplo: 1: 'text-[#FF0000]' -> H1 rojo
+
+Cómo CAMBIAR TAMAÑOS en la VISTA PREVIA:
+- Editar baseHeaderClasses en NotePreview.tsx
+  Ejemplo: 1: "text-5xl font-extrabold mb-6" (Tailwind)
+
+========================================
+4) Resumen Rápido
+========================================
+- Colores editor: src/lib/theme.ts > headerColors
+- Colores vista previa: src/lib/theme.ts > headerTextClasses
+- Tamaños vista previa: src/components/notes/NotePreview.tsx > baseHeaderClasses
+- (Opcional) Tamaños editor: añadir reglas .cm-heading.cm-hN via EditorView.theme en NoteEditor.tsx
+
+========================================
+5) Ejemplos de Cambios
+========================================
+- Quiero H1 verde en ambos lados:
+  - theme.ts:
+    headerColors.h1 = '#22c55e'
+    headerTextClasses[1] = 'text-[#22c55e]'
+
+- Quiero H2 más grande en vista previa:
+  - NotePreview.tsx:
+    baseHeaderClasses[2] = 'text-4xl font-bold mb-4'
+
+========================================
+6) Notas Técnicas
+========================================
+- oneDark trae su propio HighlightStyle y puede sobreescribir estilos; por eso se creó customDarkTheme + customSyntaxHighlighting y se dejó de usar oneDark.
+- Mantener theme.ts como única fuente para colores evita inconsistencias.
+
+========================================
+7) Actualización 2025-09-01 — Implementación técnica de sincronización de tamaños
+=======================================
+Objetivo: que los encabezados H1–H6 tengan los mismos COLORES y TAMAÑOS en el editor (CodeMirror) y en la vista previa (ReactMarkdown), controlados desde una sola fuente.
+
+- Fuente única de tamaños
+  - Archivo: src/lib/theme.ts
+  - Objeto: headerSizes (en rem) con claves h1..h6. Ej.: { h1: '2.25rem', h2: '2.25rem', h3: '1.5rem', h4: '1.25rem', h5: '1.125rem', h6: '1rem' }
+
+- Editor (CodeMirror)
+  1) ViewPlugin: headerDecorationPlugin
+     - Recorre el árbol sintáctico (syntaxTree) y detecta encabezados Markdown (ATXHeading).
+     - Aplica decoraciones de línea con clases CSS por nivel: cm-h1..cm-h6.
+  2) Estilos: EditorView.theme
+     - Define reglas CSS para .cm-line.cm-h1 .. .cm-line.cm-h6.
+     - Cada regla toma su font-size desde headerSizes (importado de src/lib/theme.ts).
+  3) Colores: siguen gestionados por customSyntaxHighlighting usando headerColors de theme.ts.
+
+- Vista previa (ReactMarkdown)
+  - En NotePreview.tsx se importa headerSizes y se aplica el tamaño vía style inline:
+    const sizeStyle = { fontSize: headerSizes[`h${level}`] }.
+  - Colores: se siguen tomando de headerTextClasses (definido en src/lib/theme.ts).
+
+- Cómo cambiar TAMAÑOS (para ambos lados a la vez)
+  - Editar una sola vez src/lib/theme.ts > headerSizes.
+  - No es necesario tocar NoteEditor ni NotePreview: ambos leen de headerSizes.
+
+- Ventajas
+  - Sincronización 100% consistente entre edición y vista previa.
+  - Un único lugar para ajustes de tamaño.
+  - Mantiene colores centralizados en theme.ts (headerColors y headerTextClasses).
+
+========================================
+8) Actualización 2025-09-01 — Ocultar solo los símbolos # en el editor
+========================================
+Objetivo: que los símbolos de encabezado en Markdown (#, ##, …) sean invisibles para no distraer, pero sin afectar el texto del header ni sus tamaños/colores. La funcionalidad de header se mantiene (al escribir espacio tras # sigue siendo un heading).
+
+- Qué NO funcionó inicialmente
+  - Intentar ocultar los símbolos usando clases CSS generadas por CodeMirror (clases ofuscadas) o estilos globales podía cambiar con versiones y, peor, terminó afectando el estilo completo de la línea del header (tamaños/colores).
+  - También se probó añadir una decoración genérica al header que accidentalmente impactó en todo el contenido del heading.
+
+- Solución profesional implementada (precisa y estable)
+  1) Plugin dedicado: `hashSymbolPlugin` en `src/components/notes/NoteEditor.tsx`.
+     - Es un `ViewPlugin` que recorre el documento línea por línea y detecta headers con una regex exacta:
+       `^(#{1,6})(?=\s|$)`
+       Esto garantiza capturar solo los símbolos `#` al inicio de la línea, seguidos de espacio o fin de línea.
+  2) Decoración puntual de rango:
+     - Para cada línea que coincide, se calcula el rango exacto de los símbolos (`hashStart = line.from`, `hashEnd = line.from + número_de_hashes`).
+     - Se aplica `Decoration.mark()` solo a ese rango con una clase específica: `cm-header-hash`.
+  3) Estilos controlados desde el tema del editor:
+     - En `customDarkTheme` (mismo archivo `NoteEditor.tsx`) se define:
+       `.cm-header-hash { opacity: 0; transition: opacity 0.2s ease; }`
+       `.cm-line:hover .cm-header-hash { opacity: 0.3; }`
+     - Resultado: los `#` son invisibles normalmente y se ven sutilmente al pasar el mouse por la línea.
+
+- Dónde está el código
+  - Plugin: `hashSymbolPlugin` en `src/components/notes/NoteEditor.tsx` (cerca de otros ViewPlugins como `headerDecorationPlugin`).
+  - Tema/estilos: `customDarkTheme` en el mismo archivo, con la regla `.cm-header-hash`.
+  - Integración: el plugin se añadió al arreglo `extensions` de ambas instancias de `<CodeMirror />` dentro de `NoteEditor.tsx` (modo split y modo edit).
+
+- Por qué ahora no rompe tamaños/colores
+  - La decoración se aplica únicamente al rango de caracteres de los símbolos `#` (no a toda la línea), y la clase usada no interfiere con `.cm-h1..cm-h6` ni con `customSyntaxHighlighting`.
+  - Los tamaños siguen proviniendo de `headerSizes` y las clases `.cm-line.cm-hN` definidas por `headerDecorationPlugin` + `EditorView.theme`.
+
+- Mantenimiento y cambios futuros
+  - Para ajustar la transparencia o el hover, editar la regla `.cm-header-hash` en `customDarkTheme` de `NoteEditor.tsx`.
+  - Si en el futuro cambia el parser de Markdown, revisar la regex `^(#{1,6})(?=\s|$)` por si se requieren otros casos.
+  - No usar clases ofuscadas del DOM; mantener la aproximación por decoraciones con rango.
+
+========================================
+9) Resumen Rápido
+========================================
+- Colores editor: src/lib/theme.ts > headerColors
+- Colores vista previa: src/lib/theme.ts > headerTextClasses
+- Tamaños vista previa: src/components/notes/NotePreview.tsx > baseHeaderClasses
+- (Opcional) Tamaños editor: añadir reglas .cm-heading.cm-hN via EditorView.theme en NoteEditor.tsx
+- Ocultar símbolos # en editor: hashSymbolPlugin en NoteEditor.tsx
+
+========================================
+10) Ejemplos de Cambios
+========================================
+- Quiero H1 verde en ambos lados:
+  - theme.ts:
+    headerColors.h1 = '#22c55e'
+    headerTextClasses[1] = 'text-[#22c55e]'
+
+- Quiero H2 más grande en vista previa:
+  - NotePreview.tsx:
+    baseHeaderClasses[2] = 'text-4xl font-bold mb-4'
+
+- Quiero ajustar la transparencia de los símbolos # en el editor:
+  - NoteEditor.tsx:
+    .cm-header-hash { opacity: 0.5; transition: opacity 0.2s ease; }
+
+========================================
+11) Notas Técnicas
+========================================
+- oneDark trae su propio HighlightStyle y puede sobreescribir estilos; por eso se creó customDarkTheme + customSyntaxHighlighting y se dejó de usar oneDark.
+- Mantener theme.ts como única fuente para colores evita inconsistencias.
+- La implementación de hashSymbolPlugin es una solución estable y precisa para ocultar los símbolos # en el editor sin afectar el resto del contenido.
+
+========================================
+12) Comportamiento de los Símbolos # (Actualizado 2025-09-01)
+========================================
+
+Los símbolos # en los encabezados ahora tienen el siguiente comportamiento:
+
+- **Mientras se escribe**: Los símbolos # son VISIBLES para facilitar la escritura.
+- **Al presionar espacio**: Los símbolos # se vuelven TRANSPARENTES automáticamente.
+- **Al pasar el ratón**: Los símbolos # se muestran con opacidad 0.3 para referencia.
+
+Implementación:
+- Archivo: src/components/notes/NoteEditor.tsx
+- Plugin: hashSymbolPlugin
+- Regex usada: `/^(#{1,6})\s/` (solo coincide cuando hay espacio después de los #)
+
+Para modificar este comportamiento:
+- Ajustar la opacidad: Editar la clase `.cm-header-hash` en el tema del editor.
+- Cambiar la condición: Modificar la regex en `buildHashDecorations`.
+
+========================================
+13) CHECKPOINT FINAL - TODAS LAS MEJORAS IMPLEMENTADAS (01/09/2025)
+========================================
+
+✅ ESTADO ACTUAL DEL SISTEMA:
+El sistema Obsidian-style está completamente funcional y optimizado con todas las mejoras implementadas.
+
+✅ MEJORAS PRINCIPALES IMPLEMENTADAS:
+
+1. **SINCRONIZACIÓN PERFECTA DE HEADERS**:
+   - Archivo central: `src/lib/theme.ts`
+   - Objeto `headerSizes`: Controla tamaños en rem para H1-H6
+   - Objeto `headerColors`: Controla colores del editor (hex)
+   - Objeto `headerTextClasses`: Controla colores de vista previa (Tailwind)
+   - Implementación: ViewPlugin `headerDecorationPlugin` + EditorView.theme
+
+2. **PADDING OPTIMIZADO DEL EDITOR**:
+   - Archivo: `src/components/notes/NoteEditor.tsx`
+   - Línea: `.cm-content { padding: '10px 0 10px 40px' }`
+   - Mejora la legibilidad y separación del contenido
+
+3. **OCULTACIÓN INTELIGENTE DE SÍMBOLOS #**:
+   - Plugin: `hashSymbolPlugin` en `NoteEditor.tsx`
+   - Regex: `/^(#{1,6})\s/` (oculta # solo cuando hay espacio después)
+   - Comportamiento: Visible al escribir, transparente después del espacio
+   - Hover: Opacidad 0.3 para referencia visual
+
+4. **DRAG & DROP PROFESIONAL**:
+   - Reordenamiento de notas y carpetas
+   - Movimiento entre carpetas diferentes
+   - Algoritmo `sort_order` optimizado sin conflictos
+   - Optimistic updates con rollback automático
+   - Indicadores visuales (líneas azules, bordes punteados)
+
+5. **MODAL DE CONFIRMACIÓN PERSONALIZADO**:
+   - Reemplaza `confirm()` nativo que no funcionaba
+   - Estado React `showDeleteConfirm`
+   - Botones "Cancelar" y "Eliminar"
+   - Funciona para eliminación individual y en lote
+
+6. **WIKILINKS AVANZADOS**:
+   - Sintaxis `[[nombre]]` con autocompletado
+   - Creación automática de notas inexistentes
+   - Base de datos: tabla `note_links` para relaciones
+
+7. **REAL-TIME SINCRONIZACIÓN**:
+   - Supabase subscriptions para cambios en tiempo real
+   - Actualizaciones optimistas instantáneas
+   - Sin necesidad de F5 o recargas manuales
+
+✅ ARQUITECTURA TÉCNICA FINAL:
+
+**Frontend:**
+- Next.js 14 con App Router
+- TypeScript para type safety
+- TailwindCSS para estilos
+- CodeMirror para editor Markdown
+- ReactMarkdown para vista previa
+
+**Backend:**
+- Supabase (PostgreSQL + Auth + Real-time)
+- Row Level Security (RLS) configurado
+- Tablas: `profiles`, `folders`, `notes`, `note_links`
+
+**Componentes Principales:**
+- `NoteEditor.tsx`: Editor principal con CodeMirror
+- `NotePreview.tsx`: Vista previa con ReactMarkdown  
+- `FileExplorer.tsx`: Explorador de archivos con drag & drop
+- `theme.ts`: Configuración centralizada de estilos
+
+✅ PLUGINS Y EXTENSIONES PERSONALIZADAS:
+
+1. **headerDecorationPlugin**:
+   - Detecta headers en sintaxis Markdown
+   - Aplica clases `cm-h1` a `cm-h6`
+   - Sincroniza tamaños con `headerSizes`
+
+2. **hashSymbolPlugin**:
+   - Oculta símbolos # de headers
+   - Regex precisa para detección
+   - Transiciones suaves de opacidad
+
+3. **customSyntaxHighlighting**:
+   - Reemplaza oneDark theme
+   - Colores personalizados para headers
+   - Mantiene sintaxis Markdown consistente
+
+4. **customDarkTheme**:
+   - Tema oscuro profesional (#0a0a0a, #1a1a1a, #0f0f0f)
+   - Estilos CSS para headers sincronizados
+   - Padding y espaciado optimizado
+
+✅ RUTAS Y NAVEGACIÓN:
+
+- `/editor`: Interfaz principal Obsidian-style
+- `/dashboard`: Panel de usuario con estadísticas
+- `/notes`: Redirige automáticamente a `/editor`
+- Autenticación: Supabase Auth con redirección automática
+
+✅ BASE DE DATOS OPTIMIZADA:
+
+**Tabla `notes`:**
+- `id`, `title`, `content`, `folder_id`, `sort_order`
+- `created_at`, `updated_at`, `user_id`
+- RLS policies para seguridad por usuario
+
+**Tabla `folders`:**
+- `id`, `name`, `parent_folder_id`, `sort_order`
+- `created_at`, `updated_at`, `user_id`
+- Estructura jerárquica para organización
+
+**Tabla `note_links`:**
+- `id`, `source_note_id`, `target_note_id`
+- `created_at`, `user_id`
+- Soporte para wikilinks y relaciones
+
+✅ CONFIGURACIÓN DE DESARROLLO:
+
+**Archivos de configuración:**
+- `package.json`: Dependencias y scripts
+- `tsconfig.json`: Configuración TypeScript
+- `tailwind.config.js`: Configuración de estilos
+- `next.config.ts`: Configuración Next.js
+
+**Scripts principales:**
+- `npm run dev`: Servidor de desarrollo
+- `npm run build`: Build para producción
+- `npm run start`: Servidor de producción
+
+✅ SISTEMA DE MEMORIA Y DOCUMENTACIÓN:
+
+- Todas las mejoras documentadas en memories
+- Checkpoint completo del estado actual
+- Guías técnicas para futuras modificaciones
+- Ejemplos de código y configuración
+
+✅ PRÓXIMOS PASOS POSIBLES:
+
+1. **Flashcards automáticas** (archivos preservados):
+   - `FlashcardViewer.tsx` y `FlashcardsViewer.tsx` disponibles
+   - Estructura de BD preparada para `decks` y `cards`
+   - Integración con sistema de notas existente
+
+2. **Mejoras adicionales**:
+   - Exportación a PDF/HTML
+   - Temas personalizables
+   - Plugins de terceros
+   - Colaboración en tiempo real
+
+✅ ESTADO FINAL:
+Sistema completamente funcional, estable y listo para producción. Todas las funcionalidades principales implementadas y optimizadas. Base sólida para futuras expansiones.
+
+========================================
+14) Fin del documento.
+========================================

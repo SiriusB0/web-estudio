@@ -1,0 +1,138 @@
+# Plan de Desarrollo: Próximas Mejoras de la Aplicación (Versión Completa)
+
+Este documento estructura las futuras funcionalidades, ordenadas por prioridad, utilidad y facilidad de implementación. Se excluyen explícitamente funcionalidades PWA y offline.
+
+---
+
+## **Tier 1: Mejoras Fundamentales (Impacto Inmediato)**
+*Funcionalidades con la mayor relación utilidad/esfuerzo. Mejoran drásticamente la experiencia diaria.*
+
+1.  **Modo Flow/Focus**
+    *   **Descripción**: Oculta la interfaz (sidebar, barras) para una escritura limpia y sin distracciones.
+    *   **Utilidad**: Máxima.
+    *   **Complejidad**: Baja.
+
+2.  **Split View (Editor | Preview)**
+    *   **Descripción**: Divide la pantalla para ver el editor y la vista previa en tiempo real con scroll sincronizado.
+    *   **Utilidad**: Muy Alta.
+    *   **Complejidad**: Media.
+
+3.  **Atajos Globales**
+    *   **Descripción**: Atajos de teclado para acciones críticas (nueva nota, buscar, alternar vista).
+    *   **Utilidad**: Alta.
+    *   **Complejidad**: Baja-Media.
+
+4.  **Tema Claro/Oscuro**
+    *   **Descripción**: Un interruptor para cambiar entre un tema claro y uno oscuro.
+    *   **Utilidad**: Alta.
+    *   **Complejidad**: Baja-Media.
+
+5.  **Quick Switcher**
+    *   **Descripción**: Un buscador rápido (ej: Ctrl+O) para saltar entre notas por su nombre.
+    *   **Utilidad**: Muy Alta.
+    *   **Complejidad**: Media.
+
+---
+
+## **Tier 2: Productividad y Organización (Estructura y Eficiencia)**
+*Herramientas para organizar el conocimiento y acelerar flujos de trabajo.*
+
+1.  **Command Palette**
+    *   **Descripción**: Un buscador de acciones (ej: Ctrl+K) para ejecutar cualquier comando de la app.
+    *   **Utilidad**: Muy Alta.
+    *   **Complejidad**: Media.
+
+2.  **Búsqueda Avanzada**
+    *   **Descripción**: Búsqueda global con filtros por título, contenido y etiquetas.
+    *   **Utilidad**: Muy Alta.
+    *   **Complejidad**: Media-Alta.
+
+3.  **Tags/Frontmatter**
+    *   **Descripción**: Soporte para #etiquetas y metadatos (YAML frontmatter) para organizar y filtrar notas.
+    *   **Utilidad**: Alta.
+    *   **Complejidad**: Media.
+
+4.  **Tabla de Contenidos (Outline)**
+    *   **Descripción**: Un panel con el índice de la nota actual basado en sus encabezados (H1, H2...).
+    *   **Utilidad**: Alta.
+    *   **Complejidad**: Media.
+
+5.  **Pins/Recent Notes**
+    *   **Descripción**: Secciones en la sidebar para notas ancladas (favoritas) y vistas recientemente.
+    *   **Utilidad**: Media-Alta.
+    *   **Complejidad**: Media.
+
+---
+
+## **Tier 3: Conexión y Calidad de Vida (Refinando la Experiencia)**
+*Funcionalidades para descubrir conocimiento y mejorar la comodidad.*
+
+1.  **Backlinks y Enlaces Salientes**
+    *   **Descripción**: Paneles para ver qué notas enlazan a la actual y a cuáles enlaza la actual.
+    *   **Utilidad**: Muy Alta (para conectar ideas).
+    *   **Complejidad**: Media-Alta.
+
+2.  **Plantillas / Snippets**
+    *   **Descripción**: Definir plantillas para crear nuevas notas con una estructura predefinida.
+    *   **Utilidad**: Alta.
+    *   **Complejidad**: Media.
+
+3.  **Daily Notes**
+    *   **Descripción**: Atajo para crear o abrir una nota para el día actual, ideal para journaling.
+    *   **Utilidad**: Media-Alta.
+    *   **Complejidad**: Media.
+
+4.  **Mejoras de Editor (Tablas, Imágenes)**
+    *   **Descripción**: Mejorar la edición de tablas y permitir pegar imágenes directamente con subida automática.
+    *   **Utilidad**: Media.
+    *   **Complejidad**: Media-Alta.
+
+5.  **Ajustes de Legibilidad (Fuente/Ancho)**
+    *   **Descripción**: Opciones para cambiar el tamaño de la fuente y el ancho máximo de la línea de texto.
+    *   **Utilidad**: Media.
+    *   **Complejidad**: Baja.
+
+---
+
+## **Tier 4: Funcionalidades Avanzadas y de Soporte (Largo Plazo)**
+*Características potentes pero de nicho, o que requieren una infraestructura más compleja.*
+
+1.  **Papelera de Reciclaje**
+    *   **Descripción**: Las notas borradas se mueven a una papelera para poder restaurarlas.
+    *   **Utilidad**: Alta (como seguro).
+    *   **Complejidad**: Media-Alta.
+
+2.  **Historial de Versiones**
+    *   **Descripción**: Guardar y poder revertir a versiones anteriores de una nota.
+    *   **Utilidad**: Media.
+    *   **Complejidad**: Alta.
+
+3.  **Modo Zen**
+    *   **Descripción**: Una versión más extrema del Modo Flow, llevando el editor a pantalla completa.
+    *   **Utilidad**: Media.
+    *   **Complejidad**: Baja.
+
+4.  **Breadcrumbs**
+    *   **Descripción**: Una "miga de pan" que muestra la ruta de navegación que has seguido.
+    *   **Utilidad**: Baja-Media.
+    *   **Complejidad**: Media.
+
+5.  **Soporte para Diagramas (Mermaid/KaTeX)**
+    *   **Descripción**: Renderizar diagramas (Mermaid) y fórmulas matemáticas (KaTeX) en las notas.
+    *   **Utilidad**: Media (específica).
+    *   **Complejidad**: Media.
+
+6.  **Grafo Ligero**
+    *   **Descripción**: Una visualización de las conexiones entre notas.
+    *   **Utilidad**: Baja-Media (más visual que práctico).
+    *   **Complejidad**: Muy Alta.
+
+7.  **RLS/Auditoría (Supabase)**
+    *   **Descripción**: Políticas de seguridad a nivel de fila y registros de auditoría.
+    *   **Utilidad**: Baja (para uso personal).
+    *   **Complejidad**: Alta.
+
+8.  **Mejoras de Rendimiento**
+    *   **Descripción**: Carga diferida de notas (lazy-loading) e indexación para búsquedas más rápidas.
+    *   **Utilidad**: Alta (a largo plazo).
+    *   **Complejidad**: Alta.

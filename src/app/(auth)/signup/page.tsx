@@ -1,0 +1,126 @@
+"use client";
+
+import { FormEvent, useState } from "react";
+import { supabase, usernameToEmail } from "@/lib/supabaseClient";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { validateInvitationCode, useInvitationCode } from "@/lib/invitations";
+
+export default function SignupPage() {
+  const router = useRouter();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [invitationCode, setInvitationCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      // Validar código de invitación (obligatorio)
+      if (!invitationCode.trim()) {
+        throw new Error("El código de invitación es obligatorio");
+      }
+
+      const isValidCode = await validateInvitationCode(invitationCode.trim().toUpperCase());
+      if (!isValidCode) {
+        throw new Error("Código de invitación inválido, usado o expirado");
+      }
+
+      // Convertir username a email (siempre, no permitir emails directos)
+      const email = usernameToEmail(username.trim());
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (signUpError) throw signUpError;
+
+      const user = signUpData.user;
+      if (!user) throw new Error("No se pudo obtener el usuario tras el registro");
+
+      // Marcar código como usado
+      const codeUsed = await useInvitationCode(invitationCode.trim().toUpperCase(), user.id);
+      if (!codeUsed) {
+        // Si no se pudo marcar el código, eliminar el usuario creado
+        await supabase.auth.admin.deleteUser(user.id);
+        throw new Error("Error procesando el código de invitación");
+      }
+
+      // Crea el perfil con el username
+      const { error: insertErr } = await supabase.from("profiles").insert({
+        id: user.id,
+        username,
+      });
+      if (insertErr) throw insertErr;
+
+      // Ir al dashboard
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message ?? "Error durante el registro");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="w-full max-w-md p-8 bg-gray-800 border border-gray-700 rounded-lg shadow-xl">
+        <h1 className="text-2xl font-bold text-center mb-6 text-white">Crear Cuenta</h1>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm mb-1">Usuario</label>
+            <input
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="tu_usuario"
+              minLength={3}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm mb-1">Contraseña</label>
+            <input
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              minLength={6}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm mb-1 text-gray-300">Código de Invitación</label>
+            <input
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all uppercase"
+              type="text"
+              value={invitationCode}
+              onChange={(e) => setInvitationCode(e.target.value.toUpperCase())}
+              placeholder="ABC12345"
+              maxLength={12}
+              required
+            />
+            <p className="text-xs text-gray-400 mt-1">Necesitas un código válido para registrarte</p>
+          </div>
+          {error && (
+            <p className="text-red-400 text-sm text-center">{error}</p>
+          )}
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-500 transition-all duration-200 disabled:opacity-50 shadow-sm"
+            disabled={loading}
+          >
+            {loading ? "Creando..." : "Crear cuenta"}
+          </button>
+        </form>
+        <p className="text-sm mt-4">
+          ¿Ya tienes cuenta? {" "}
+          <a href="/login" className="text-blue-400 hover:text-blue-300 transition-colors">Iniciar sesión</a>
+        </p>
+      </div>
+    </main>
+  );
+}

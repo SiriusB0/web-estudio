@@ -1,0 +1,87 @@
+# Guía de Migraciones Seguras (Supabase)
+
+Objetivo: aplicar cambios en la base de datos sin perder datos y con posibilidad de rollback.
+
+---
+
+## 1) Principios
+- **Primero aditivo**: agrega columnas/tablas/índices antes de borrar o renombrar.
+- **Compatibilidad**: mantén el frontend compatible con el esquema viejo y el nuevo durante la transición.
+- **Idempotencia**: escribe SQL que no falle si se ejecuta dos veces (usa `IF NOT EXISTS`).
+- **Backups**: antes de cambios mayores, crea un backup/export en Supabase.
+- **Entornos separados**: prueba en "dev" y solo luego aplica en "prod".
+
+---
+
+## 2) Flujo recomendado (paso a paso)
+1. **Diseño**
+   - Define el cambio (p.ej., nueva columna `sort_order` en `notes`).
+   - Valida impacto en RLS, índices y consultas.
+
+2. **Prepara SQL de migración** (archivo versionado en el repo)
+   - Ej.: `migrations/2025-09-01_add_sort_order.sql`
+   - Contenido ejemplo:
+     ```sql
+     -- columnas nuevas
+     ALTER TABLE public.notes ADD COLUMN IF NOT EXISTS sort_order int4;
+     ALTER TABLE public.folders ADD COLUMN IF NOT EXISTS sort_order int4;
+
+     -- índices
+     CREATE INDEX IF NOT EXISTS notes_sort_order_idx ON public.notes(sort_order);
+     CREATE INDEX IF NOT EXISTS folders_sort_order_idx ON public.folders(sort_order);
+
+     -- RLS (si aplica)
+     -- Asegura que las políticas existentes sigan permitiendo select/update de las nuevas columnas
+     ```
+
+3. **Migración de datos (si hace falta)**
+   - Rellena valores por defecto sin bloquear la app.
+   - Ej.: `UPDATE public.notes SET sort_order = COALESCE(sort_order, 0) WHERE sort_order IS NULL;`
+
+4. **Cambios en el frontend** (compatibles)
+   - Lee/escribe la nueva columna opcionalmente (feature flag o detección).
+
+5. **Pruebas en dev**
+   - Ejecuta el SQL en el proyecto Supabase de desarrollo.
+   - Verifica CRUD, RLS y rendimiento.
+
+6. **Deploy frontend (preview)**
+   - Sube la versión que usa el nuevo esquema, pero que no falla si no existe.
+
+7. **Aplicar en prod**
+   - Backup → Ejecuta SQL en prod → Verifica con datos reales.
+
+8. **Limpieza (opcional y diferida)**
+   - Cuando todo esté estable, elimina columnas antiguas o tablas obsoletas con otro SQL.
+
+---
+
+## 3) Políticas RLS
+- Revisa que las políticas sigan siendo válidas tras cambios.
+- Usa patrones como "own records" con `auth.uid()` y `exists` para joins.
+- Versiona también las políticas en archivos SQL.
+
+---
+
+## 4) Rollback
+- Mantén scripts de rollback cuando sea posible (p.ej., `ALTER TABLE ... DROP COLUMN`), o documenta cómo revertir manualmente.
+- Si el cambio fue aditivo, el rollback suele ser no urgente (basta con ignorar columna nueva).
+
+---
+
+## 5) Qué NO hacer en producción
+- No ejecutar scripts destructivos de limpieza como `sql_obsidian_clean.sql`.
+- No borrar tablas/columnas sin backup y sin confirmar que el frontend ya no las usa.
+
+---
+
+## 6) Checklists rápidos
+- **Antes de migrar**: backup creado, SQL probado en dev, RLS revisadas, frontend compatible.
+- **Después de migrar**: smoke test CRUD, ver consola/logs, monitorear errores y rendimiento.
+
+---
+
+## 7) Archivos de referencia en el repo
+- `sql_folders_update.sql`: ejemplo de alteraciones y políticas RLS.
+- `sql_conservative_fix.sql` y `fix_rls_policies.sql`: ajustes conservadores de seguridad.
+- Úsalos como guía, o migra a una carpeta `migrations/` con archivos fechados.

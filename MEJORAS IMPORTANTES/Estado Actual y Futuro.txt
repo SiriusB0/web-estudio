@@ -1,0 +1,69 @@
+# Documentación: Estado Actual y Visión Futura de la Aplicación
+
+Este documento describe el propósito, funcionalidades actuales y futuras de la aplicación, con un enfoque en cómo utilizarla eficazmente para el estudio.
+
+---
+
+## **Parte 1: El Propósito - Tu Segundo Cerebro para Estudiar**
+
+El objetivo de esta aplicación es ser un **espacio de conocimiento personal y conectado**. No es solo un lugar para tomar apuntes, sino una herramienta para:
+
+1.  **Capturar ideas** rápidamente.
+2.  **Conectar conceptos** de diferentes temas.
+3.  **Construir una base de conocimiento** que crece y evoluciona contigo.
+4.  **Facilitar el repaso activo** y el descubrimiento de nuevas relaciones entre lo que has aprendido.
+
+La metodología se inspira en sistemas como Zettelkasten o "Building a Second Brain", donde el valor no está en las notas aisladas, sino en las **conexiones** que creas entre ellas.
+
+---
+
+## **Parte 2: Estado Actual y Cómo Usarlo para Estudiar**
+
+### **Funcionalidades Implementadas:**
+
+*   **Editor de Markdown**: Un editor de texto simple y potente que soporta el formato estándar de Markdown para dar estilo a tus notas (títulos, negritas, listas, etc.).
+*   **Barra de Herramientas de Markdown**: Botones para aplicar formatos comunes sin necesidad de recordar la sintaxis.
+*   **Sistema de Wikilinks (`[[...]]`)**: Esta es la funcionalidad **clave** de la aplicación.
+    *   **Autocompletado**: Al escribir `[[`, se muestran sugerencias de notas existentes.
+    *   **Navegación Fluida**: Hacer clic en un wikilink te lleva a esa nota instantáneamente, sin recargar la página.
+    *   **Creación Automática**: Si haces un enlace a una nota que no existe, se creará automáticamente cuando hagas clic en él. ¡Nunca rompas tu flujo de pensamiento!
+    *   **Diferenciación Visual**: Los enlaces internos (`[[wikilinks]]`) son **azules** y los enlaces externos (a otras webs) son **verdes**, para que siempre sepas a dónde te diriges.
+
+### **¿Cómo Estudiar con la Aplicación (Hoy)?**
+
+1.  **Crea Notas Atómicas**: En lugar de una nota gigante para "Biología", crea notas más pequeñas y específicas: `[[Célula Eucariota]]`, `[[Mitocondria]]`, `[[Ciclo de Krebs]]`.
+
+2.  **Conecta Mientras Escribes**: Cuando estés escribiendo sobre la `[[Célula Eucariota]]`, menciona que su energía se produce en la `[[Mitocondria]]` usando un wikilink. Si estás detallando la `[[Mitocondria]]`, enlaza al `[[Ciclo de Krebs]]`.
+    *   **Ejemplo**: "La `[[Mitocondria]]` es conocida como la central energética de la célula. Aquí ocurre el `[[Ciclo de Krebs]]`, un proceso vital para la respiración celular."
+
+3.  **Centraliza Temas**: Crea notas "Índice" o "MOC" (Map of Content). Por ejemplo, una nota llamada `[[Biología Celular]]` que contenga enlaces a todas las notas más pequeñas relacionadas:
+    *   `# Biología Celular
+
+      ## Estructuras Principales
+      - [[Célula Eucariota]]
+      - [[Célula Procariota]]
+      - [[Membrana Plasmática]]
+
+      ## Procesos Clave
+      - [[Ciclo de Krebs]]
+      - [[Fotosíntesis]]`
+
+4.  **Navega tus Ideas**: Usa los clics en los wikilinks para saltar de un concepto a otro, reforzando las conexiones en tu mente de la misma forma que lo haces en la aplicación.
+
+---
+
+## **Parte 3: El Futuro - Cómo las Nuevas Funcionalidades Potenciarán tu Estudio**
+
+Las mejoras planificadas (ver `Siguientes Mejoras de la web.txt`) están diseñadas para sobrealimentar este flujo de trabajo:
+
+*   **Modo Flow y Split View**: Te permitirán **concentrarte al 100%** en escribir y formatear tus notas, eliminando distracciones y haciendo el proceso más eficiente.
+
+*   **Command Palette y Quick Switcher**: Reducirán la fricción al mínimo. Podrás crear, buscar y saltar entre notas en milisegundos **sin levantar las manos del teclado**. Esto es crucial para mantener el flujo de pensamiento mientras estudias.
+
+*   **Tabla de Contenidos y Backlinks**: Serán tus superpoderes para el repaso. 
+    *   La **Tabla de Contenidos** te permitirá navegar por notas largas de forma estructurada.
+    *   El panel de **Backlinks** será revolucionario: al ver la nota `[[Ciclo de Krebs]]`, podrás ver al instante **todas las otras notas que la mencionan**. Esto te revelará conexiones que no recordabas y te ayudará a entender el contexto global de un concepto.
+
+*   **Tags y Búsqueda Avanzada**: A medida que tu base de conocimiento crezca, estas herramientas serán esenciales para **filtrar y encontrar información específica**. Podrás buscar todas las notas etiquetadas con `#química` o que contengan la frase "enlace covalente".
+
+En resumen, si hoy la aplicación es un excelente lugar para **crear y conectar notas**, el futuro la convertirá en un sistema inteligente para **navegar, descubrir y solidificar tu conocimiento** de una forma mucho más dinámica y potente.
