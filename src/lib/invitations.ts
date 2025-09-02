@@ -102,6 +102,27 @@ export const getAllInvitationCodes = async (): Promise<InvitationCode[]> => {
   }
 };
 
+// Obtener detalles del código de invitación (para registro)
+export const getInvitationCodeDetails = async (code: string): Promise<InvitationCode | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('invitation_codes')
+      .select('*')
+      .eq('code', code)
+      .single();
+
+    if (error) {
+      console.error('Error obteniendo detalles del código:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error en getInvitationCodeDetails:', error);
+    return null;
+  }
+};
+
 // Validar código de invitación (para registro)
 export const validateInvitationCode = async (code: string): Promise<boolean> => {
   try {

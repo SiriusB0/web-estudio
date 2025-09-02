@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { supabase, usernameToEmail } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { validateInvitationCode, markInvitationCodeAsUsed } from "@/lib/invitations";
+import { getInvitationCodeDetails, markInvitationCodeAsUsed } from "@/lib/invitations";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -19,41 +19,53 @@ export default function SignupPage() {
     setError(null);
     setLoading(true);
     try {
-      // Validar código de invitación (obligatorio)
+      // 1. Validar código de invitación y obtener detalles
       if (!invitationCode.trim()) {
         throw new Error("El código de invitación es obligatorio");
       }
-
-      const isValidCode = await validateInvitationCode(invitationCode.trim().toUpperCase());
-      if (!isValidCode) {
+      const codeDetails = await getInvitationCodeDetails(invitationCode.trim().toUpperCase());
+      if (!codeDetails || codeDetails.used_at || new Date(codeDetails.expires_at) < new Date()) {
         throw new Error("Código de invitación inválido, usado o expirado");
       }
+      const sourceUserId = codeDetails.created_by; // ID del admin que creó el código
 
-      // Convertir username a email (siempre, no permitir emails directos)
+      // 2. Crear el nuevo usuario en Supabase Auth
       const email = usernameToEmail(username.trim());
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
       });
       if (signUpError) throw signUpError;
-
       const user = signUpData.user;
       if (!user) throw new Error("No se pudo obtener el usuario tras el registro");
 
-      // Marcar código como usado
+      // 3. Marcar código como usado (crítico para evitar reutilización)
       const codeUsed = await markInvitationCodeAsUsed(invitationCode.trim().toUpperCase(), user.id);
       if (!codeUsed) {
-        // Si no se pudo marcar el código, eliminar el usuario creado
+        // Si falla, es crucial eliminar el usuario para mantener la integridad
         await supabase.auth.admin.deleteUser(user.id);
-        throw new Error("Error procesando el código de invitación");
+        throw new Error("Error crítico al procesar el código de invitación. Inténtalo de nuevo.");
       }
 
-      // Crea el perfil con el username
-      const { error: insertErr } = await supabase.from("profiles").insert({
+      // 4. Crear el perfil del usuario
+      const { error: profileError } = await supabase.from("profiles").insert({
         id: user.id,
         username,
       });
-      if (insertErr) throw insertErr;
+      if (profileError) throw profileError;
+
+      // 5. Clonar los datos del admin al nuevo usuario
+      const { error: cloneError } = await supabase.rpc('clone_user_data', {
+        source_user_id: sourceUserId,
+        target_user_id: user.id
+      });
+
+      if (cloneError) {
+        // Si la clonación falla, no es un error de bloqueo. El usuario ya está creado.
+        // Se registra el error para seguimiento, pero se permite al usuario continuar.
+        console.error("Error durante la clonación de datos (no bloqueante):", cloneError);
+        // Opcional: podrías mostrar un mensaje al usuario o notificar a un admin.
+      }
 
       // Ir al dashboard
       router.push("/dashboard");
