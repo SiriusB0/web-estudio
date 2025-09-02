@@ -346,6 +346,91 @@ export default function NoteEditor({
     decorations: v => v.decorations
   });
 
+  // Plugin para renderizar colores de texto en tiempo real
+  const colorTextPlugin = ViewPlugin.fromClass(class {
+    decorations: DecorationSet = Decoration.none;
+
+    constructor(view: EditorView) {
+      this.decorations = this.buildColorDecorations(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = this.buildColorDecorations(update.view);
+      }
+    }
+
+    buildColorDecorations(view: EditorView) {
+      const decorations: any[] = [];
+      const doc = view.state.doc;
+      const text = doc.toString();
+      
+      // Buscar patrones de <span style="color: #...">texto</span>
+      const colorRegex = /<span\s+style="color:\s*(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)"\s*>(.*?)<\/span>/g;
+      let match;
+      const matches = [];
+      
+      // Recopilar todas las coincidencias primero
+      while ((match = colorRegex.exec(text)) !== null) {
+        const fullMatch = match[0];
+        const color = match[1];
+        const innerText = match[2];
+        const startPos = match.index;
+        const endPos = startPos + fullMatch.length;
+        const innerStart = startPos + fullMatch.indexOf(innerText);
+        const innerEnd = innerStart + innerText.length;
+        
+        matches.push({
+          startPos,
+          innerStart,
+          innerEnd,
+          endPos,
+          color,
+          innerText
+        });
+      }
+      
+      // Ordenar por posición de inicio
+      matches.sort((a, b) => a.startPos - b.startPos);
+      
+      // Crear decoraciones en orden
+      for (const match of matches) {
+        // Etiqueta de apertura
+        decorations.push(
+          Decoration.mark({
+            attributes: { 
+              class: 'cm-color-tag',
+              style: 'opacity: 0.3; font-size: 0.8em;'
+            }
+          }).range(match.startPos, match.innerStart)
+        );
+        
+        // Texto coloreado
+        decorations.push(
+          Decoration.mark({
+            attributes: { 
+              style: `color: ${match.color} !important;`
+            }
+          }).range(match.innerStart, match.innerEnd)
+        );
+        
+        // Etiqueta de cierre
+        decorations.push(
+          Decoration.mark({
+            attributes: { 
+              class: 'cm-color-tag',
+              style: 'opacity: 0.3; font-size: 0.8em;'
+            }
+          }).range(match.innerEnd, match.endPos)
+        );
+      }
+      
+      return Decoration.set(decorations);
+    }
+  }, {
+    decorations: v => v.decorations
+  });
+
   // Tema oscuro personalizado con tamaños de headers
   const customDarkTheme = EditorView.theme({
     '&': {
@@ -379,6 +464,15 @@ export default function NoteEditor({
     },
     '.cm-line:hover .cm-header-hash': {
       opacity: '0.3 !important'
+    },
+    // Estilos para etiquetas de color
+    '.cm-color-tag': {
+      opacity: '0.3 !important',
+      fontSize: '0.8em !important',
+      color: '#666 !important'
+    },
+    '.cm-line:hover .cm-color-tag': {
+      opacity: '0.6 !important'
     },
     '.cm-theme': {
       backgroundColor: '#1e1e1e !important'
@@ -725,6 +819,55 @@ export default function NoteEditor({
     }, 10);
   }, []);
 
+  const handleColorInsert = useCallback((color: string) => {
+    const view = editorRef.current?.view;
+    if (!view) return;
+
+    const { from, to } = view.state.selection.main;
+    const currentContent = view.state.doc.toString();
+    const selectedText = currentContent.slice(from, to);
+    
+    if (!selectedText) {
+      // Sin selección, insertar template
+      const template = `<span style="color: ${color}">texto</span>`;
+      const newContent = 
+        currentContent.slice(0, from) + 
+        template + 
+        currentContent.slice(to);
+      
+      setContent(newContent);
+      
+      setTimeout(() => {
+        if (view) {
+          const templateStart = from + `<span style="color: ${color}">`.length;
+          const templateEnd = templateStart + 'texto'.length;
+          view.dispatch({
+            selection: { anchor: templateStart, head: templateEnd }
+          });
+          view.focus();
+        }
+      }, 10);
+    } else {
+      // Con selección, envolver el texto
+      const wrappedText = `<span style="color: ${color}">${selectedText}</span>`;
+      const newContent = 
+        currentContent.slice(0, from) + 
+        wrappedText + 
+        currentContent.slice(to);
+      
+      setContent(newContent);
+      
+      setTimeout(() => {
+        if (view) {
+          view.dispatch({
+            selection: { anchor: from + wrappedText.length, head: from + wrappedText.length }
+          });
+          view.focus();
+        }
+      }, 10);
+    }
+  }, []);
+
   const handleNavigateToLine = useCallback((line: number) => {
     const view = editorRef.current?.view;
     if (!view) return;
@@ -966,18 +1109,131 @@ export default function NoteEditor({
       </div>
 
       {/* Markdown Toolbar */}
-      {!isFocusMode && <MarkdownToolbar 
-        onInsert={handleToolbarInsert} 
-        viewMode={viewMode}
-        flashcardCount={flashcardCount}
-        pendingQuestion={pendingQuestion}
-        onViewFlashcards={() => setShowFlashcardViewer(true)}
-        onStudyFlashcards={() => {
-          if (noteId) {
-            window.location.href = `/study/${noteId}`;
-          }
-        }}
-      />}
+      {isFocusMode ? (
+        <div className="flex items-center gap-1 p-2 border-b border-gray-900 relative" style={{backgroundColor: '#0f0f0f'}}>
+          <button 
+            title="Negrita" 
+            onClick={() => handleToolbarInsert('**', '**', true)}
+            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors font-bold"
+          >
+            B
+          </button>
+          <button 
+            title="Cursiva" 
+            onClick={() => handleToolbarInsert('*', '*', true)}
+            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors italic"
+          >
+            I
+          </button>
+          <button 
+            title="Título 1" 
+            onClick={() => handleToolbarInsert('# ', '')}
+            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors text-lg font-bold"
+          >
+            H1
+          </button>
+          <button 
+            title="Título 2" 
+            onClick={() => handleToolbarInsert('## ', '')}
+            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors text-base font-bold"
+          >
+            H2
+          </button>
+          <button 
+            title="Código inline" 
+            onClick={() => handleToolbarInsert('`', '`', true)}
+            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors font-mono text-xs"
+          >
+            &lt;/&gt;
+          </button>
+          <button 
+            title="Bloque de código" 
+            onClick={() => handleToolbarInsert('```\n', '\n```')}
+            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors font-mono text-xs"
+          >
+            ```
+          </button>
+          <button 
+            title="Lista" 
+            onClick={() => handleToolbarInsert('- ', '')}
+            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors"
+          >
+            •
+          </button>
+          <button 
+            title="Lista numerada" 
+            onClick={() => handleToolbarInsert('1. ', '')}
+            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors"
+          >
+            1.
+          </button>
+          <button 
+            title="Cita" 
+            onClick={() => handleToolbarInsert('> ', '')}
+            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors"
+          >
+            ❝
+          </button>
+          <button 
+            title="Enlace" 
+            onClick={() => handleToolbarInsert('[', '](url)')}
+            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors"
+          >
+            🔗
+          </button>
+          <div className="w-px h-4 bg-gray-600 mx-1"></div>
+          <button 
+            title="Texto rojo" 
+            onClick={() => handleColorInsert('#ef4444')}
+            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+            style={{backgroundColor: '#ef4444'}}
+          ></button>
+          <button 
+            title="Texto azul" 
+            onClick={() => handleColorInsert('#3b82f6')}
+            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+            style={{backgroundColor: '#3b82f6'}}
+          ></button>
+          <button 
+            title="Texto verde" 
+            onClick={() => handleColorInsert('#22c55e')}
+            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+            style={{backgroundColor: '#22c55e'}}
+          ></button>
+          <button 
+            title="Texto amarillo" 
+            onClick={() => handleColorInsert('#eab308')}
+            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+            style={{backgroundColor: '#eab308'}}
+          ></button>
+          <button 
+            title="Texto naranja" 
+            onClick={() => handleColorInsert('#f97316')}
+            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+            style={{backgroundColor: '#f97316'}}
+          ></button>
+          <button 
+            title="Texto morado" 
+            onClick={() => handleColorInsert('#a855f7')}
+            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+            style={{backgroundColor: '#a855f7'}}
+          ></button>
+        </div>
+      ) : (
+        <MarkdownToolbar 
+          onInsert={handleToolbarInsert}
+          onColorInsert={handleColorInsert}
+          viewMode={viewMode}
+          flashcardCount={flashcardCount}
+          pendingQuestion={pendingQuestion}
+          onViewFlashcards={() => setShowFlashcardViewer(true)}
+          onStudyFlashcards={() => {
+            if (noteId) {
+              window.location.href = `/study/${noteId}`;
+            }
+          }}
+        />
+      )}
 
       {/* Editor or Preview */}
       <div className="flex-1 overflow-hidden relative flex" ref={editorContainerRef}>
@@ -997,6 +1253,7 @@ export default function NoteEditor({
                   syntaxHighlighting(customSyntaxHighlighting),
                   headerDecorationPlugin,
                   hashSymbolPlugin,
+                  colorTextPlugin,
                 ]}
                 theme={customDarkTheme}
                 basicSetup={{
@@ -1041,6 +1298,7 @@ export default function NoteEditor({
                 syntaxHighlighting(customSyntaxHighlighting),
                 headerDecorationPlugin,
                 hashSymbolPlugin,
+                colorTextPlugin,
               ]}
               theme={customDarkTheme}
               basicSetup={{

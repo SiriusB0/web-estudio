@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 
 interface MarkdownToolbarProps {
   onInsert: (prefix: string, suffix?: string, wrapSelection?: boolean) => void;
+  onColorInsert?: (color: string) => void;
   viewMode: "edit" | "preview";
   flashcardCount?: number;
   pendingQuestion?: string;
@@ -13,6 +14,7 @@ interface MarkdownToolbarProps {
 
 export default function MarkdownToolbar({ 
   onInsert, 
+  onColorInsert,
   viewMode,
   flashcardCount = 0,
   pendingQuestion = "",
@@ -134,6 +136,49 @@ export default function MarkdownToolbar({
           {action.icon}
         </button>
       ))}
+      
+      {/* Separador y botones de colores */}
+      <div className="w-px h-4 bg-gray-600 mx-2"></div>
+      {onColorInsert && (
+        <>
+          <button 
+            title="Texto rojo" 
+            onClick={() => onColorInsert('#ef4444')}
+            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+            style={{backgroundColor: '#ef4444'}}
+          ></button>
+          <button 
+            title="Texto azul" 
+            onClick={() => onColorInsert('#3b82f6')}
+            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+            style={{backgroundColor: '#3b82f6'}}
+          ></button>
+          <button 
+            title="Texto verde" 
+            onClick={() => onColorInsert('#22c55e')}
+            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+            style={{backgroundColor: '#22c55e'}}
+          ></button>
+          <button 
+            title="Texto amarillo" 
+            onClick={() => onColorInsert('#eab308')}
+            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+            style={{backgroundColor: '#eab308'}}
+          ></button>
+          <button 
+            title="Texto naranja" 
+            onClick={() => onColorInsert('#f97316')}
+            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+            style={{backgroundColor: '#f97316'}}
+          ></button>
+          <button 
+            title="Texto morado" 
+            onClick={() => onColorInsert('#a855f7')}
+            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+            style={{backgroundColor: '#a855f7'}}
+          ></button>
+        </>
+      )}
       
       {/* Botón de estructura */}
       <div className="relative">

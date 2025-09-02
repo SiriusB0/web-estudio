@@ -200,7 +200,7 @@ export default function InvitationsPage() {
                 : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
             }`}
           >
-            {showAll ? 'Mostrar solo activos' : 'Mostrar todos'}
+{showAll ? 'Mostrar todos' : 'Mostrar solo activos'}
           </button>
         </div>
 

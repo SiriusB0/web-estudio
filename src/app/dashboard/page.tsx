@@ -108,14 +108,6 @@ export default function DashboardPage() {
               >
                 Mi sitio de Estudio
               </a>
-              {userIsAdmin && (
-                <a 
-                  href="/dashboard/invitations" 
-                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-300 bg-blue-900/50 rounded border border-blue-500/50 hover:bg-blue-800/50 transition-colors"
-                >
-                  Invitaciones
-                </a>
-              )}
               <button 
                 onClick={handleLogout}
                 className="text-sm font-medium text-gray-400 hover:text-white transition-colors"
@@ -131,16 +123,8 @@ export default function DashboardPage() {
       <main className="max-w-2xl mx-auto px-6 py-8">
         {profile ? (
           <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 p-6">
-            <div className="flex items-center mb-6">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-medium">
-                  {profile.username?.charAt(0).toUpperCase() || 'U'}
-                </span>
-              </div>
-              <div className="ml-3">
-                <h2 className="text-lg font-medium text-gray-100">Configuración de Cuenta</h2>
-                <p className="text-sm text-gray-400">Gestiona tu información personal</p>
-              </div>
+            <div className="mb-6">
+              <h2 className="text-lg font-medium text-gray-100">Configuración de Cuenta</h2>
             </div>
             
             <div className="space-y-4">
@@ -193,6 +177,17 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+            
+            {userIsAdmin && (
+              <div className="mt-6 pt-6 border-t border-gray-700">
+                <a 
+                  href="/dashboard/invitations" 
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-300 bg-blue-900/50 rounded border border-blue-500/50 hover:bg-blue-800/50 transition-colors"
+                >
+                  Gestión de Usuario
+                </a>
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 p-6 text-center">

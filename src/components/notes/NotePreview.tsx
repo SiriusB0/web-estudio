@@ -2,6 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import { useMemo, useState } from "react";
 import { headerTextClasses, headerSizes } from "../../lib/theme";
 
@@ -182,6 +183,7 @@ export default function NotePreview({ content, onWikiLinkClick }: NotePreviewPro
         <div key={section.id}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeRaw]}
             components={renderMarkdownComponents}
           >
             {processWikilinks(section.content.join('\n'))}
@@ -243,6 +245,7 @@ export default function NotePreview({ content, onWikiLinkClick }: NotePreviewPro
               <div className="ml-4">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
                   components={renderMarkdownComponents}
                 >
                   {processWikilinks(section.content.join('\n'))}
