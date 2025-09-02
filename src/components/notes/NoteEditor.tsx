@@ -409,12 +409,12 @@ export default function NoteEditor({
       
       // Crear decoraciones en orden (ya están ordenadas por el regex)
       for (const match of matches) {
-        // Etiqueta de apertura
+        // Etiqueta de apertura - COMPLETAMENTE OCULTA
         decorations.push(
           Decoration.mark({
             attributes: { 
-              class: 'cm-color-tag',
-              style: 'opacity: 0.3; font-size: 0.8em;'
+              class: 'cm-color-tag-hidden',
+              style: 'display: none !important;'
             }
           }).range(match.startPos, match.innerStart)
         );
@@ -428,12 +428,12 @@ export default function NoteEditor({
           }).range(match.innerStart, match.innerEnd)
         );
         
-        // Etiqueta de cierre
+        // Etiqueta de cierre - COMPLETAMENTE OCULTA
         decorations.push(
           Decoration.mark({
             attributes: { 
-              class: 'cm-color-tag',
-              style: 'opacity: 0.3; font-size: 0.8em;'
+              class: 'cm-color-tag-hidden',
+              style: 'display: none !important;'
             }
           }).range(match.innerEnd, match.endPos)
         );
@@ -479,14 +479,14 @@ export default function NoteEditor({
     '.cm-line:hover .cm-header-hash': {
       opacity: '0.3 !important'
     },
-    // Estilos para etiquetas de color
-    '.cm-color-tag': {
-      opacity: '0.3 !important',
-      fontSize: '0.8em !important',
-      color: '#666 !important'
-    },
-    '.cm-line:hover .cm-color-tag': {
-      opacity: '0.6 !important'
+    // Estilos para etiquetas de color - COMPLETAMENTE OCULTAS
+    '.cm-color-tag-hidden': {
+      display: 'none !important',
+      visibility: 'hidden !important',
+      opacity: '0 !important',
+      fontSize: '0 !important',
+      width: '0 !important',
+      height: '0 !important'
     },
     '.cm-theme': {
       backgroundColor: '#1e1e1e !important'
