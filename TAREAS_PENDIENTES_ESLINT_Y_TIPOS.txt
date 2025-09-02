@@ -1,0 +1,61 @@
+TAREAS PENDIENTES PARA LIMPIEZA DE ESLINT/TS Y ENDURECER EL BUILD
+
+FASE 0 (HOY) - ESTADO ACTUAL
+- Deploy funcionando en Vercel.
+- next.config.ts con:
+  - eslint.ignoreDuringBuilds: true
+  - typescript.ignoreBuildErrors: true
+- eslint.config.mjs degradó reglas críticas a "warn".
+
+FASE 1 - CORREGIR CÓDIGO (SIN CAMBIAR LA CONFIG DE BUILD)
+[ ] Eliminar/eludir ANY con tipos concretos
+    Archivos con incidencias (según logs):
+    - src/app/(auth)/login/page.tsx
+    - src/app/(auth)/signup/page.tsx
+    - src/app/dashboard/invitations/page.tsx
+    - src/app/editor/page.tsx
+    - src/app/notes/[id]/page.tsx
+    - src/components/notes/FileExplorer.tsx
+    - src/components/notes/NoteEditor.tsx / NoteEditor_FIXED.tsx
+    - src/components/notes/NotePreview.tsx
+    - src/lib/notes/flashcards.ts
+    - src/lib/notes/noteUtils.ts
+    - src/lib/notes/wikilinks.ts
+
+[ ] Reglas de React Hooks
+    - No llamar hooks dentro de funciones no-React (ej: useInvitationCode en onSubmit).
+    - Añadir dependencias faltantes en useEffect/useMemo/useCallback o justificar con comentarios.
+
+[ ] Reemplazar <img> por next/image donde sea posible
+    - Componentes: StudyMode, FlashcardViewer, ManualFlashcardCreator, ImageModal, etc.
+
+[ ] Escapar comillas en JSX (react/no-unescaped-entities)
+    - Usar &quot; o {'"'} en: FileExplorer.tsx (línea ~1124) y Notes/[id]/page.tsx (línea ~310), etc.
+
+[ ] prefer-const y variables no usadas
+    - Cambiar let->const cuando no se reasigna.
+    - Eliminar variables/imports no usados.
+
+FASE 2 - ENDURECER EL BUILD (GRADUAL)
+[ ] Local: ejecutar `npm run build` sin errores tras Fase 1.
+[ ] Subir reglas a nivel "error" en eslint.config.mjs (paso a paso).
+[ ] En next.config.ts:
+    - Desactivar eslint.ignoreDuringBuilds (volver a validar ESLint en CI).
+    - Desactivar typescript.ignoreBuildErrors (volver a validar TS en CI).
+
+FASE 3 - VALIDACIÓN Y MONITOREO
+[ ] Revisar logs de Vercel tras cada endurecimiento.
+[ ] QA manual de rutas clave: /, /login, /signup, /editor, /notes/[id], /study/*
+
+NOTAS IMPORTANTES
+- El deploy en Vercel no afecta a los datos de Supabase. Las notas viven en la BD; no se pierden por redeploys.
+- Asegurar que las variables de entorno de Supabase están configuradas en Vercel (URL y anon key).
+- Recomendado: copias de seguridad/exports periódicos en Supabase o activar PITR si está disponible.
+
+CÓMO VALIDAR LOCALMENTE
+1) npm ci
+2) npm run lint (opcional, según config)
+3) npm run build
+4) Corregir lo que reporte y repetir hasta cero errores.
+
+CHECKPOINT: cuando Fase 1 esté lista y el build local pase sin errores, planificar Fase 2 para reactivar checks en CI.
