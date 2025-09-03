@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { countFlashcardsForNote } from "@/lib/notes/flashcards";
+import { countFlashcardsForNote, getAllNotesFromFolderRecursive } from "@/lib/notes/flashcards";
 
 interface Note {
   id: string;
@@ -41,13 +41,20 @@ export default function FolderStudySelector({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Obtener notas de la carpeta
+      // Obtener todas las notas de la carpeta y subcarpetas recursivamente
+      const allNoteIds = await getAllNotesFromFolderRecursive(folderId, user.id);
+      
+      if (allNoteIds.length === 0) {
+        setNotes([]);
+        return;
+      }
+
+      // Obtener detalles de las notas
       const { data: notesData } = await supabase
         .from('notes')
-        .select('id, title')
-        .eq('owner_id', user.id)
-        .eq('folder_id', folderId)
-        .order('sort_order');
+        .select('id, title, folder_id')
+        .in('id', allNoteIds)
+        .order('title');
 
       if (!notesData) return;
 
@@ -114,7 +121,7 @@ export default function FolderStudySelector({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <h2 className="text-lg font-semibold text-white">
-            Estudiar flashcards: {folderName}
+            Estudiar flashcards: {folderName} (incluye subcarpetas)
           </h2>
           <button
             onClick={onClose}

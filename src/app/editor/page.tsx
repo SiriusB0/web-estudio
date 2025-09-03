@@ -100,16 +100,66 @@ export default function EditorPage() {
 
   const loadFirstNote = async (userId: string) => {
     try {
-      // Try to load the most recently updated note
-      const { data: notes } = await supabase
-        .from("notes")
-        .select("*")
+      // First try to load the first note from the first folder (ordered by sort_order)
+      const { data: folders } = await supabase
+        .from("folders")
+        .select("id")
         .eq("owner_id", userId)
-        .order("updated_at", { ascending: false })
+        .is("parent_folder_id", null) // Only root folders
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true })
         .limit(1);
 
-      if (notes && notes.length > 0) {
-        setCurrentNote(notes[0]);
+      let firstNote = null;
+
+      if (folders && folders.length > 0) {
+        // Get first note from first folder
+        const { data: folderNotes } = await supabase
+          .from("notes")
+          .select("*")
+          .eq("owner_id", userId)
+          .eq("folder_id", folders[0].id)
+          .order("sort_order", { ascending: true })
+          .order("title", { ascending: true })
+          .limit(1);
+
+        if (folderNotes && folderNotes.length > 0) {
+          firstNote = folderNotes[0];
+        }
+      }
+
+      // If no note found in folders, try root notes
+      if (!firstNote) {
+        const { data: rootNotes } = await supabase
+          .from("notes")
+          .select("*")
+          .eq("owner_id", userId)
+          .is("folder_id", null)
+          .order("sort_order", { ascending: true })
+          .order("title", { ascending: true })
+          .limit(1);
+
+        if (rootNotes && rootNotes.length > 0) {
+          firstNote = rootNotes[0];
+        }
+      }
+
+      // If still no note, try any note (fallback)
+      if (!firstNote) {
+        const { data: anyNotes } = await supabase
+          .from("notes")
+          .select("*")
+          .eq("owner_id", userId)
+          .order("updated_at", { ascending: false })
+          .limit(1);
+
+        if (anyNotes && anyNotes.length > 0) {
+          firstNote = anyNotes[0];
+        }
+      }
+
+      if (firstNote) {
+        setCurrentNote(firstNote);
       } else {
         // Create welcome note if no notes exist
         await createWelcomeNote(userId);

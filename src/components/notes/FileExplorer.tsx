@@ -69,6 +69,8 @@ export default function FileExplorer({ onNoteSelect, onNewNote, onNewFolder, sel
   const [showFolderDeleteConfirm, setShowFolderDeleteConfirm] = useState<{show: boolean, folderName: string, noteCount: number, onConfirm: () => void} | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [showFolderStudy, setShowFolderStudy] = useState<{folderId: string | null, folderName: string} | null>(null);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [hasAutoExpanded, setHasAutoExpanded] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -117,6 +119,27 @@ export default function FileExplorer({ onNoteSelect, onNewNote, onNewFolder, sel
       foldersSubscription.unsubscribe();
     };
   }, []);
+
+  // Auto-expand folders containing the selected note (only on initial load)
+  useEffect(() => {
+    if (selectedNoteId && notes.length > 0 && folders.length > 0 && !hasAutoExpanded) {
+      const selectedNote = notes.find(n => n.id === selectedNoteId);
+      if (selectedNote?.folder_id) {
+        // Find all parent folders and expand them
+        const foldersToExpand = new Set(expandedFolders);
+        let currentFolderId: string | null = selectedNote.folder_id;
+        
+        while (currentFolderId) {
+          foldersToExpand.add(currentFolderId);
+          const parentFolder = folders.find(f => f.id === currentFolderId);
+          currentFolderId = parentFolder?.parent_folder_id || null;
+        }
+        
+        setExpandedFolders(foldersToExpand);
+        setHasAutoExpanded(true);
+      }
+    }
+  }, [selectedNoteId, notes, folders, hasAutoExpanded, expandedFolders]);
 
   useEffect(() => {
     // Listen for custom event to start editing a note
@@ -277,7 +300,12 @@ export default function FileExplorer({ onNoteSelect, onNewNote, onNewFolder, sel
 
       const { data: newFolder, error } = await supabase
         .from('folders')
-        .insert([{ name: "Nueva Carpeta", owner_id: user.id, sort_order: folders.length }])
+        .insert([{ 
+          name: "Nueva Carpeta", 
+          owner_id: user.id, 
+          sort_order: folders.length,
+          parent_folder_id: selectedFolderId // Create inside selected folder if any
+        }])
         .select()
         .single();
 
@@ -287,6 +315,11 @@ export default function FileExplorer({ onNoteSelect, onNewNote, onNewFolder, sel
       setFolders(prev => [...prev, newFolder]);
       setEditingItem({ id: newFolder.id, type: 'folder', isNew: true });
       setEditingName("Nueva Carpeta");
+      
+      // If creating inside a folder, expand it
+      if (selectedFolderId) {
+        setExpandedFolders(prev => new Set([...prev, selectedFolderId]));
+      }
     } catch (error) {
       console.error('Error creating folder:', error);
     }
@@ -831,9 +864,19 @@ Escribe aquí tu contenido...`;
         
         <div
           className={`flex items-center py-1 px-2 cursor-pointer group transition-all duration-200 relative ${
-            isSelected ? "bg-blue-600 text-blue-100" : "text-gray-300"
+            item.type === "note" && selectedNoteId === item.id 
+              ? "bg-blue-600/80 text-blue-100 border-l-2 border-blue-400" 
+              : item.type === "folder" && selectedFolderId === item.id
+                ? "bg-gray-700/80 text-gray-100 border-l-2 border-gray-400"
+                : isSelected 
+                  ? "bg-blue-600 text-blue-100" 
+                  : "text-gray-300"
           } ${
-            "hover:bg-gray-800"
+            item.type === "note" && selectedNoteId === item.id
+              ? "hover:bg-blue-600/90"
+              : item.type === "folder" && selectedFolderId === item.id
+                ? "hover:bg-gray-700/90"
+                : "hover:bg-gray-800"
           } ${
             draggedItem?.id === item.id && isDragging 
               ? "opacity-50 scale-95" 
@@ -852,9 +895,12 @@ Escribe aquí tu contenido...`;
               return;
             }
             if (item.type === "folder") {
+              // Select folder and toggle expansion
+              setSelectedFolderId(selectedFolderId === item.id ? null : item.id);
               toggleFolder(item.id);
             } else {
               onNoteSelect(item.id);
+              setSelectedFolderId(null); // Clear folder selection when selecting note
             }
           }}
         >
@@ -1022,7 +1068,7 @@ Escribe aquí tu contenido...`;
               createFolder();
             }}
             className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors group border border-gray-700 hover:border-gray-600"
-            title="Nueva Carpeta"
+            title={selectedFolderId ? "Nueva Subcarpeta" : "Nueva Carpeta"}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" className="text-white">
               <path fill="currentColor" d="m12.5,14.5h3.5v1h-3.5v3.5h-1v-3.5h-3.5v-1h3.5v-3.5h1v3.5Zm11.5-9v17.5H0V3.5C0,2.122,1.121,1,2.5,1h5.618l4,2h9.382c1.379,0,2.5,1.122,2.5,2.5ZM1,3.5v3.5h22v-1.5c0-.827-.673-1.5-1.5-1.5h-9.618l-4-2H2.5c-.827,0-1.5.673-1.5,1.5Zm22,18.5v-14H1v14h22Z"/>

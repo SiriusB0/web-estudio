@@ -75,18 +75,6 @@ export default function MarkdownToolbar({
       style: "italic"
     },
     {
-      icon: "H1",
-      title: "Título 1",
-      action: () => onInsert("# ", "", false),
-      style: "text-lg font-bold"
-    },
-    {
-      icon: "H2", 
-      title: "Título 2",
-      action: () => onInsert("## ", "", false),
-      style: "text-base font-bold"
-    },
-    {
       icon: "</>",
       title: "Código inline",
       action: () => onInsert("`", "`", true),
@@ -176,6 +164,12 @@ export default function MarkdownToolbar({
             onClick={() => onColorInsert('#a855f7')}
             className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
             style={{backgroundColor: '#a855f7'}}
+          ></button>
+          <button 
+            title="Texto blanco" 
+            onClick={() => onColorInsert('#ffffff')}
+            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+            style={{backgroundColor: '#ffffff'}}
           ></button>
         </>
       )}

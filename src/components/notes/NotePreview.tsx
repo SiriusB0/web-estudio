@@ -113,19 +113,26 @@ export default function NotePreview({ content, onWikiLinkClick }: NotePreviewPro
     return sections;
   }, [content]);
 
-  // Procesar contenido para reemplazar wikilinks manteniendo markdown
-  const processWikilinks = (text: string) => {
+  // Procesar contenido para reemplazar wikilinks y colores manteniendo markdown
+  const processContent = (text: string) => {
     // Limpiar corchetes extra múltiples
     let cleanContent = text
       .replace(/\]\]\]\]+/g, ']]')  // Múltiples ]] extra
       .replace(/\[\[\[\[+/g, '[[');  // Múltiples [[ extra
     
     // Procesar wikilinks normales
-    return cleanContent.replace(/\[\[([^\]]+)\]\]/g, (match, linkText) => {
+    cleanContent = cleanContent.replace(/\[\[([^\]]+)\]\]/g, (match, linkText) => {
       const cleaned = linkText.trim();
       const linkId = cleaned.replace(/\s+/g, '_');
       return `[${cleaned}](wikilink-${linkId})`;
     });
+
+    // Procesar colores {#hex|texto} -> <span style="color: hex">texto</span>
+    cleanContent = cleanContent.replace(/\{(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\|([^}]*)\}/g, (match, color, text) => {
+      return `<span style="color: ${color}">${text}</span>`;
+    });
+    
+    return cleanContent;
   };
 
   const renderMarkdownComponents = {
@@ -186,7 +193,7 @@ export default function NotePreview({ content, onWikiLinkClick }: NotePreviewPro
             rehypePlugins={[rehypeRaw]}
             components={renderMarkdownComponents}
           >
-            {processWikilinks(section.content.join('\n'))}
+            {processContent(section.content.join('\n'))}
           </ReactMarkdown>
         </div>
       );
@@ -248,7 +255,7 @@ export default function NotePreview({ content, onWikiLinkClick }: NotePreviewPro
                   rehypePlugins={[rehypeRaw]}
                   components={renderMarkdownComponents}
                 >
-                  {processWikilinks(section.content.join('\n'))}
+                  {processContent(section.content.join('\n'))}
                 </ReactMarkdown>
               </div>
             )}
@@ -265,8 +272,8 @@ export default function NotePreview({ content, onWikiLinkClick }: NotePreviewPro
   };
 
   return (
-    <div className="p-6 max-w-none overflow-hidden">
-      <div className="prose prose-invert max-w-none break-words overflow-wrap-anywhere">
+    <div className="p-6 pr-8 max-w-full overflow-hidden">
+      <div className="prose prose-invert max-w-full break-words overflow-wrap-anywhere" style={{ maxWidth: 'calc(100vw - 400px)' }}>
         {parsedSections.map((section) => renderSection(section))}
       </div>
     </div>

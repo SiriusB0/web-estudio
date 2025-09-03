@@ -220,6 +220,59 @@ export async function getFlashcardsForNotes(noteIds: string[]): Promise<Flashcar
   }
 }
 
+// Obtener todas las notas de una carpeta y sus subcarpetas recursivamente
+export async function getAllNotesFromFolderRecursive(folderId: string | null, userId: string): Promise<string[]> {
+  try {
+    const noteIds: string[] = [];
+    
+    // Función recursiva para obtener notas de una carpeta y sus subcarpetas
+    const collectNotesFromFolder = async (currentFolderId: string | null): Promise<void> => {
+      // Obtener notas directas de esta carpeta
+      const { data: notes } = await supabase
+        .from('notes')
+        .select('id')
+        .eq('owner_id', userId)
+        .eq('folder_id', currentFolderId);
+      
+      if (notes) {
+        noteIds.push(...notes.map(n => n.id));
+      }
+      
+      // Obtener subcarpetas y procesar recursivamente
+      const { data: subfolders } = await supabase
+        .from('folders')
+        .select('id')
+        .eq('owner_id', userId)
+        .eq('parent_folder_id', currentFolderId);
+      
+      if (subfolders) {
+        for (const subfolder of subfolders) {
+          await collectNotesFromFolder(subfolder.id);
+        }
+      }
+    };
+    
+    await collectNotesFromFolder(folderId);
+    return noteIds;
+  } catch (error) {
+    console.error('Error obteniendo notas recursivamente:', error);
+    return [];
+  }
+}
+
+// Obtener flashcards de una carpeta y todas sus subcarpetas
+export async function getFlashcardsForFolderRecursive(folderId: string | null, userId: string): Promise<Flashcard[]> {
+  try {
+    const noteIds = await getAllNotesFromFolderRecursive(folderId, userId);
+    if (noteIds.length === 0) return [];
+    
+    return await getFlashcardsForNotes(noteIds);
+  } catch (error) {
+    console.error('Error obteniendo flashcards de carpeta recursiva:', error);
+    return [];
+  }
+}
+
 // Eliminar flashcard
 export async function deleteFlashcard(flashcardId: string): Promise<boolean> {
   try {

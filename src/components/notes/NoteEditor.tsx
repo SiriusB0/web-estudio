@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import CodeMirror from "@uiw/react-codemirror";
-import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
+import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate, WidgetType, scrollPastEnd, keymap } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting, syntaxTree, foldGutter, foldEffect, unfoldEffect, codeFolding } from "@codemirror/language";
 import { lineNumbers } from "@codemirror/view";
@@ -355,88 +355,69 @@ export default function NoteEditor({
     }
 
     update(update: ViewUpdate) {
-      if (update.docChanged || update.viewportChanged) {
-        this.decorations = this.buildColorDecorations(update.view);
+      if (update.docChanged || update.viewportChanged || update.selectionSet) {
+        // Usar requestAnimationFrame para evitar parpadeos
+        requestAnimationFrame(() => {
+          this.decorations = this.buildColorDecorations(update.view);
+        });
       }
     }
 
     buildColorDecorations(view: EditorView) {
       const decorations: any[] = [];
       const doc = view.state.doc;
+      const selection = view.state.selection.main;
       
-      // OPTIMIZACIÓN: Solo procesar el rango visible + un buffer pequeño
-      const visibleRanges = view.visibleRanges;
-      if (visibleRanges.length === 0) return Decoration.set([]);
+      // Procesar todo el documento para evitar inconsistencias
+      const fullText = doc.toString();
       
-      // Calcular rango extendido con buffer de 500 caracteres
-      const bufferSize = 500;
-      const firstVisible = Math.max(0, visibleRanges[0].from - bufferSize);
-      const lastVisible = Math.min(doc.length, visibleRanges[visibleRanges.length - 1].to + bufferSize);
-      
-      // Extraer solo el texto del rango visible
-      const visibleText = doc.sliceString(firstVisible, lastVisible);
-      
-      // Buscar patrones de <span style="color: #...">texto</span>
-      const colorRegex = /<span\s+style="color:\s*(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)"\s*>(.*?)<\/span>/g;
+      // Buscar patrones de {#hex|texto} completos y válidos
+      const colorRegex = /\{(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\|([^}]*)\}/g;
       let match;
-      const matches = [];
       
-      // Recopilar coincidencias en el rango visible
-      while ((match = colorRegex.exec(visibleText)) !== null) {
+      while ((match = colorRegex.exec(fullText)) !== null) {
         const fullMatch = match[0];
         const color = match[1];
         const innerText = match[2];
-        const relativeStartPos = match.index;
-        const relativeEndPos = relativeStartPos + fullMatch.length;
-        const relativeInnerStart = relativeStartPos + fullMatch.indexOf(innerText);
-        const relativeInnerEnd = relativeInnerStart + innerText.length;
+        const startPos = match.index;
+        const endPos = startPos + fullMatch.length;
+        const innerStart = startPos + fullMatch.indexOf('|') + 1;
+        const innerEnd = innerStart + innerText.length;
         
-        // Convertir posiciones relativas a absolutas
-        const startPos = firstVisible + relativeStartPos;
-        const endPos = firstVisible + relativeEndPos;
-        const innerStart = firstVisible + relativeInnerStart;
-        const innerEnd = firstVisible + relativeInnerEnd;
+        // Solo aplicar decoraciones si el patrón está completo y no hay cursor en los bordes
+        const cursorInBorders = (selection.from >= startPos && selection.from <= innerStart) || 
+                               (selection.to >= innerEnd && selection.to <= endPos);
         
-        matches.push({
-          startPos,
-          innerStart,
-          innerEnd,
-          endPos,
-          color,
-          innerText
-        });
-      }
-      
-      // Crear decoraciones en orden (ya están ordenadas por el regex)
-      for (const match of matches) {
-        // Etiqueta de apertura - COMPLETAMENTE OCULTA
-        decorations.push(
-          Decoration.mark({
-            attributes: { 
-              class: 'cm-color-tag-hidden',
-              style: 'display: none !important;'
-            }
-          }).range(match.startPos, match.innerStart)
-        );
-        
-        // Texto coloreado
-        decorations.push(
-          Decoration.mark({
-            attributes: { 
-              style: `color: ${match.color} !important;`
-            }
-          }).range(match.innerStart, match.innerEnd)
-        );
-        
-        // Etiqueta de cierre - COMPLETAMENTE OCULTA
-        decorations.push(
-          Decoration.mark({
-            attributes: { 
-              class: 'cm-color-tag-hidden',
-              style: 'display: none !important;'
-            }
-          }).range(match.innerEnd, match.endPos)
-        );
+        if (!cursorInBorders && innerText.length > 0) {
+          // Marcadores de apertura {#color| - COMPLETAMENTE OCULTOS
+          decorations.push(
+            Decoration.mark({
+              attributes: { 
+                class: 'cm-color-tag-hidden',
+                style: 'position: absolute; left: -9999px; opacity: 0 !important; width: 0 !important; height: 0 !important; overflow: hidden !important;'
+              }
+            }).range(startPos, innerStart)
+          );
+          
+          // Texto coloreado
+          decorations.push(
+            Decoration.mark({
+              attributes: { 
+                style: `color: ${color} !important; font-weight: inherit;`
+              }
+            }).range(innerStart, innerEnd)
+          );
+          
+          // Marcador de cierre } - COMPLETAMENTE OCULTO
+          decorations.push(
+            Decoration.mark({
+              attributes: { 
+                class: 'cm-color-tag-hidden',
+                style: 'position: absolute; left: -9999px; opacity: 0 !important; width: 0 !important; height: 0 !important; overflow: hidden !important;'
+              }
+            }).range(innerEnd, endPos)
+          );
+        }
       }
       
       return Decoration.set(decorations);
@@ -445,6 +426,92 @@ export default function NoteEditor({
     decorations: v => v.decorations
   });
 
+  // Extension para detectar cuando se borra la última letra de texto coloreado
+  const colorKeymap = keymap.of([
+    {
+      key: "Backspace",
+      run: (view) => {
+        const { from, to } = view.state.selection.main;
+        if (from !== to) return false; // Si hay selección, comportamiento normal
+        
+        const doc = view.state.doc;
+        const text = doc.toString();
+        
+        // Buscar si estamos dentro de un patrón de color
+        const colorRegex = /\{(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\|([^}]*)\}/g;
+        let match;
+        
+        while ((match = colorRegex.exec(text)) !== null) {
+          const startPos = match.index;
+          const endPos = startPos + match[0].length;
+          const innerStart = startPos + match[0].indexOf('|') + 1;
+          const innerEnd = innerStart + match[2].length;
+          
+          // Si el cursor está dentro del texto coloreado
+          if (from > innerStart && from <= innerEnd) {
+            const currentText = match[2];
+            
+            // Si solo queda 1 carácter y vamos a borrarlo, eliminar todo el patrón
+            if (currentText.length === 1) {
+              view.dispatch({
+                changes: {
+                  from: startPos,
+                  to: endPos,
+                  insert: ""
+                },
+                selection: { anchor: startPos }
+              });
+              return true;
+            }
+          }
+        }
+        
+        return false; // Comportamiento normal de Backspace
+      }
+    },
+    {
+      key: "Delete",
+      run: (view) => {
+        const { from, to } = view.state.selection.main;
+        if (from !== to) return false; // Si hay selección, comportamiento normal
+        
+        const doc = view.state.doc;
+        const text = doc.toString();
+        
+        // Buscar si estamos dentro de un patrón de color
+        const colorRegex = /\{(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\|([^}]*)\}/g;
+        let match;
+        
+        while ((match = colorRegex.exec(text)) !== null) {
+          const startPos = match.index;
+          const endPos = startPos + match[0].length;
+          const innerStart = startPos + match[0].indexOf('|') + 1;
+          const innerEnd = innerStart + match[2].length;
+          
+          // Si el cursor está dentro del texto coloreado
+          if (from >= innerStart && from < innerEnd) {
+            const currentText = match[2];
+            
+            // Si solo queda 1 carácter y vamos a borrarlo, eliminar todo el patrón
+            if (currentText.length === 1) {
+              view.dispatch({
+                changes: {
+                  from: startPos,
+                  to: endPos,
+                  insert: ""
+                },
+                selection: { anchor: startPos }
+              });
+              return true;
+            }
+          }
+        }
+        
+        return false; // Comportamiento normal de Delete
+      }
+    }
+  ]);
+
   // Tema oscuro personalizado con tamaños de headers
   const customDarkTheme = EditorView.theme({
     '&': {
@@ -452,9 +519,12 @@ export default function NoteEditor({
       backgroundColor: '#1e1e1e !important'
     },
     '.cm-content': {
-      padding: '10px 0 10px 40px',
+      padding: '10px 20px 10px 40px',
       caretColor: '#528bff',
-      backgroundColor: '#1e1e1e !important'
+      backgroundColor: '#1e1e1e !important',
+      maxWidth: 'calc(100vw - 360px)',
+      wordWrap: 'break-word',
+      overflowWrap: 'break-word'
     },
     '.cm-activeLine': {
       backgroundColor: 'transparent !important'
@@ -466,7 +536,8 @@ export default function NoteEditor({
       backgroundColor: '#1e1e1e !important'
     },
     '.cm-scroller': {
-      backgroundColor: '#1e1e1e !important'
+      backgroundColor: '#1e1e1e !important',
+      scrollPaddingBottom: '100px'
     },
     '.cm-focused': {
       backgroundColor: '#1e1e1e !important'
@@ -481,12 +552,17 @@ export default function NoteEditor({
     },
     // Estilos para etiquetas de color - COMPLETAMENTE OCULTAS
     '.cm-color-tag-hidden': {
-      display: 'none !important',
+      position: 'absolute !important',
+      left: '-9999px !important',
+      top: '-9999px !important',
+      display: 'inline !important',
       visibility: 'hidden !important',
       opacity: '0 !important',
       fontSize: '0 !important',
       width: '0 !important',
-      height: '0 !important'
+      height: '0 !important',
+      overflow: 'hidden !important',
+      pointerEvents: 'none !important'
     },
     '.cm-theme': {
       backgroundColor: '#1e1e1e !important'
@@ -839,43 +915,83 @@ export default function NoteEditor({
 
     const { from, to } = view.state.selection.main;
     const currentContent = view.state.doc.toString();
+    
+    const scrollTop = view.scrollDOM.scrollTop;
+
+    // Regex para encontrar todos los bloques de color
+    const colorRegex = /\{(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\|([^}]*)\}/g;
+    let match;
+    let replaced = false;
+
+    // Iterar sobre todos los bloques de color para ver si la selección está dentro de uno
+    while ((match = colorRegex.exec(currentContent)) !== null) {
+      const startPos = match.index;
+      const endPos = startPos + match[0].length;
+
+      // Si la selección está dentro de un bloque de color existente
+      if (from >= startPos && to <= endPos) {
+        const innerText = match[2];
+        const newColoredText = `{${color}|${innerText}}`;
+        
+        const newContent = 
+          currentContent.slice(0, startPos) + 
+          newColoredText + 
+          currentContent.slice(endPos);
+
+        setContent(newContent);
+        setTimeout(() => {
+          if (view) {
+            view.dispatch({
+              selection: { anchor: startPos + newColoredText.length }
+            });
+            view.scrollDOM.scrollTop = scrollTop;
+            view.focus();
+          }
+        }, 10);
+        
+        replaced = true;
+        break; // Salir del bucle una vez que se ha reemplazado
+      }
+    }
+
+    if (replaced) return;
+
+    // --- Comportamiento original si no se está dentro de un bloque de color ---
     const selectedText = currentContent.slice(from, to);
     
     if (!selectedText) {
-      // Sin selección, insertar template
-      const template = `<span style="color: ${color}">texto</span>`;
+      const template = `{${color}|texto}`;
       const newContent = 
         currentContent.slice(0, from) + 
         template + 
         currentContent.slice(to);
       
       setContent(newContent);
-      
       setTimeout(() => {
         if (view) {
-          const templateStart = from + `<span style="color: ${color}">`.length;
+          const templateStart = from + `{${color}|`.length;
           const templateEnd = templateStart + 'texto'.length;
           view.dispatch({
             selection: { anchor: templateStart, head: templateEnd }
           });
+          view.scrollDOM.scrollTop = scrollTop;
           view.focus();
         }
       }, 10);
     } else {
-      // Con selección, envolver el texto
-      const wrappedText = `<span style="color: ${color}">${selectedText}</span>`;
+      const wrappedText = `{${color}|${selectedText}}`;
       const newContent = 
         currentContent.slice(0, from) + 
         wrappedText + 
         currentContent.slice(to);
       
       setContent(newContent);
-      
       setTimeout(() => {
         if (view) {
           view.dispatch({
-            selection: { anchor: from + wrappedText.length, head: from + wrappedText.length }
+            selection: { anchor: from + wrappedText.length }
           });
+          view.scrollDOM.scrollTop = scrollTop;
           view.focus();
         }
       }, 10);
@@ -1140,20 +1256,6 @@ export default function NoteEditor({
             I
           </button>
           <button 
-            title="Título 1" 
-            onClick={() => handleToolbarInsert('# ', '')}
-            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors text-lg font-bold"
-          >
-            H1
-          </button>
-          <button 
-            title="Título 2" 
-            onClick={() => handleToolbarInsert('## ', '')}
-            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors text-base font-bold"
-          >
-            H2
-          </button>
-          <button 
             title="Código inline" 
             onClick={() => handleToolbarInsert('`', '`', true)}
             className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors font-mono text-xs"
@@ -1264,6 +1366,8 @@ export default function NoteEditor({
                   lineNumbers(),
                   markdown(),
                   EditorView.lineWrapping,
+                  scrollPastEnd(),
+                  colorKeymap,
                   syntaxHighlighting(customSyntaxHighlighting),
                   headerDecorationPlugin,
                   hashSymbolPlugin,
@@ -1309,6 +1413,8 @@ export default function NoteEditor({
                 markdown(),
                 EditorView.lineWrapping,
                 codeFolding(),
+                scrollPastEnd(),
+                colorKeymap,
                 syntaxHighlighting(customSyntaxHighlighting),
                 headerDecorationPlugin,
                 hashSymbolPlugin,
@@ -1367,11 +1473,11 @@ export default function NoteEditor({
               const doc = editorRef.current.view.state.doc;
               const lineObj = doc.line(line);
               
-              // Primero hacer scroll al área
+              // Hacer scroll para mostrar el header en la primera línea
               editorRef.current.view.dispatch({
                 effects: EditorView.scrollIntoView(lineObj.from, {
-                  y: "center",
-                  yMargin: 50
+                  y: "start",
+                  yMargin: 10
                 })
               });
               
