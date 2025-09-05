@@ -1,0 +1,107 @@
+Propuestas de mejora de CONTENIDO para la página de estudio de flashcards
+
+1) Tipos nuevos de tarjeta
+- Cloze (relleno de huecos): "La capital de Francia es {{c1::París}}". Variantes: múltiples huecos, desbloqueo progresivo.
+- Opción múltiple con distractores: distractores manuales o sugeridos por IA; barajar opciones; 1 o varias correctas.
+- Ordenar pasos: ordenar elementos arrastrando (workflow, procesos, algoritmos).
+- Emparejar conceptos: término ↔ definición; imagen ↔ nombre; símbolo ↔ significado.
+- Imagen con hotspots: clic en áreas de una imagen (anatomía, mapas, diagramas técnicos).
+- Image occlusion: cubrir partes de la imagen y destaparlas al responder.
+- Verdadero/Falso con justificación: respuesta breve para reforzar razonamiento.
+- Completar tabla parcial: completar una celda clave de una tabla (fórmulas, equivalencias, declinaciones).
+- QA con audio: reproducir audio en la pregunta o en la respuesta (idiomas, fonética, dictados).
+- Código: "¿Qué imprime este código?" con bloque + resaltado de sintaxis y salida esperada.
+
+2) Contenido enriquecido por tarjeta
+- Pistas en niveles: Pista 1 → Pista 2 (progresivo)
+- Explicación post-respuesta: por qué es correcta, trampas comunes, casos límite
+- Ejemplos y contraejemplos: refuerzan generalización correcta
+- Sinónimos y variantes: listado de respuestas equivalentes aceptadas
+- Referencias y enlaces: hacia sección/encabezado de la nota original (anchor)
+- Campos auxiliares: mnemotecnia, unidades esperadas, prerequisitos
+
+3) Validación y respuestas
+- Varias respuestas válidas: array de equivalentes
+- Normalización: tildes/diacríticos, mayúsculas/minúsculas, espacios
+- Sinónimos/regex: admitir variantes con patrones
+- Tolerancia numérica: ±x% y chequeo de unidades
+- Modos de verificación: "igual", "contiene", "palabras clave" (all/any)
+
+4) Multimedia
+- Imágenes: varias por tarjeta (mini-galería), anotaciones (flechas/rectángulos), zoom/recorte y reordenar
+- Audio: TTS (pregunta/respuesta), grabación del usuario para practicar pronunciación
+- Video: fragmentos con timestamp para preguntas contextuales
+- Matemáticas: soporte LaTeX/KaTeX en pregunta y respuesta
+
+5) Contexto y navegación
+- Contexto de origen: fragmento de la nota + enlace al encabezado (breadcrumb tema/sección)
+- Relación entre tarjetas: "relacionadas" por tag/encabezado, prerequisitos → avanzadas
+
+6) Controles pedagógicos
+- Modo bidireccional: preguntar reverso (definición ↔ término)
+- Variantes de pregunta: 2–3 formulaciones de la misma idea (reconocimiento vs recuerdo)
+- Señalización de calidad: marcar "ambigua", "dudosa", "mejorar", "duplicada"
+- Dificultad por tarjeta: fácil / media / difícil
+- Metadatos: tags libres, nivel, tiempo estimado, fuente (libro/paper/clase)
+
+7) UX en la página de estudio
+- Flujo de respuesta: Pista 1 → Pista 2 → Respuesta; cloze por pasos; modo "escribir" vs "reconocer"
+- Edición rápida: "Editar/Mejorar" in-place con guardado sin salir del estudio; duplicar tarjeta
+- Atajos de teclado: overlay de shortcuts; navegación por pistas; confirmar con Enter
+- Layout: panel lateral plegable con lista de tarjetas, filtros por tag/dificultad, búsqueda
+
+8) Analítica de contenido
+- Por tarjeta: fallos, pistas usadas, tiempo medio de respuesta
+- Heatmap por etiquetas/encabezados: dónde fallas más para priorizar mejoras
+
+9) Implementación sugerida (resumen técnico)
+- Modelo Flashcard (TypeScript aproximado):
+  {
+    id, deckId, type: 'basic'|'cloze'|'mcq'|'order'|'match'|'image-hotspot'|'v-f'|'table'|'code',
+    question, answer,
+    hints: string[],
+    explanation?: string,
+    examples?: string[],
+    counterExamples?: string[],
+    synonyms?: string[],
+    validation?: {
+      mode: 'equal'|'contains'|'keywords'|'regex'|'numeric',
+      regex?: string,
+      keywords?: string[],
+      numericTolerance?: number,
+      requireUnits?: boolean
+    },
+    media?: {
+      images?: { url: string, caption?: string, regions?: {x:number,y:number,w:number,h:number,label?:string}[] }[],
+      audioUrl?: string,
+      video?: { url: string, from?: number, to?: number }
+    },
+    math?: boolean,
+    source?: { noteId: string, headingId?: string, anchor?: string, snippet?: string },
+    tags?: string[],
+    difficulty?: 'easy'|'medium'|'hard',
+    bidirectional?: boolean,
+    relations?: { prereqIds?: string[], relatedIds?: string[] }
+  }
+- UI de edición (FlashcardGenerator.tsx):
+  - Selector de tipo, secciones plegables (Pistas, Explicación, Ejemplos, Sinónimos, Validación)
+  - Gestor de imágenes (subir, recortar, anotar), soporte LaTeX opcional
+  - Campo de enlace a encabezado de nota (anchor) y vista previa de snippet
+- UI de estudio (FlashcardsViewer.tsx):
+  - Render por tipo; controles de pista; botón Editar; panel lateral; atajos de teclado
+
+10) Prioridades recomendadas (alto impacto/bajo esfuerzo)
+- Añadir Pistas y Explicación en todas las tarjetas
+- Aceptar múltiples respuestas válidas + normalización (tildes/case)
+- Mostrar Contexto de origen con enlace al encabezado
+- Modo bidireccional en tarjetas de término/definición
+- Tipos nuevos mínimos: Cloze y Opción múltiple
+
+11) Checklist de siguientes pasos
+[ ] Extender modelo Flashcard con hints, explanation, synonyms y source
+[ ] UI de edición: secciones Pistas/Explicación/Sinónimos/Validación
+[ ] UI de estudio: mostrar pistas progresivas y explicación post-respuesta
+[ ] Normalizador de respuestas (tildes, mayúsculas, espacios)
+[ ] Cloze + MCQ (mínimo viable)
+[ ] Contexto de origen (breadcrumb y enlace)
+[ ] Botón de edición rápida en modo estudio

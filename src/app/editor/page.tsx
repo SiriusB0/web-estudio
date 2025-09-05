@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import FileExplorer from "@/components/notes/FileExplorer";
 import NoteEditor from "@/components/notes/NoteEditor";
 import NotePreview from "@/components/notes/NotePreview";
+import DocumentOutline from "@/components/notes/DocumentOutline";
 import { extractWikiLinks, updateNoteLinks } from "@/lib/notes/wikilinks";
 
 type Note = {
@@ -24,11 +25,22 @@ export default function EditorPage() {
   const [loading, setLoading] = useState(true);
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [explorerKey, setExplorerKey] = useState(0);
-  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showOutline, setShowOutline] = useState(false);
+  const outlineButtonRef = useRef<HTMLButtonElement>(null);
   const [isSplitView, setIsSplitView] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [explorerKey, setExplorerKey] = useState(0);
   const router = useRouter();
+
+  // Cerrar esquema al cambiar de modo
+  useEffect(() => {
+    if (viewMode === "edit" && showOutline) {
+      setShowOutline(false);
+    }
+  }, [viewMode, showOutline]);
 
   useEffect(() => {
     // Verificar si hay parámetro note en URL ANTES de checkAuth
@@ -384,7 +396,7 @@ Escribe aquí tu contenido...`;
         
         {/* Skeleton del contenido principal */}
         <div className="flex-1 flex flex-col">
-          <div className="border-b border-gray-900 bg-gray-950 px-6 py-3">
+          <div className="border-b border-gray-900 bg-gray-950 px-3 py-3">
             <div className="h-6 bg-gray-800 rounded animate-pulse w-1/3"></div>
           </div>
           <div className="flex-1 p-6">
@@ -413,6 +425,8 @@ Escribe aquí tu contenido...`;
         onNewFolder={handleNewFolder}
         selectedNoteId={currentNote?.id}
         onMoveNote={handleMoveNote}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />}
 
       {/* Main Content */}
@@ -420,7 +434,7 @@ Escribe aquí tu contenido...`;
         {currentNote ? (
           <>
             {/* Header */}
-            <div className="border-b border-gray-900 bg-gray-950 px-6 py-3 flex items-center justify-between">
+            <div className="border-b border-gray-900 bg-gray-950 px-3 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {(isSplitView || viewMode === "preview") && (
                   <button
@@ -476,6 +490,18 @@ Escribe aquí tu contenido...`;
                       <span>Vista previa</span>
                     </div>
                     <div className="flex items-center gap-2">
+                      <button
+                        ref={outlineButtonRef}
+                        onClick={() => setShowOutline(!showOutline)}
+                        className="px-3 py-2 text-sm bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors"
+                        title="Ver esquema"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                          <line x1="9" y1="9" x2="15" y2="9"/>
+                          <line x1="9" y1="15" x2="15" y2="15"/>
+                        </svg>
+                      </button>
                       <button
                         onClick={() => setViewMode("edit")}
                         className="px-3 py-2 text-sm bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors"
@@ -540,6 +566,54 @@ Escribe aquí tu contenido...`;
           </div>
         )}
       </div>
+
+      {/* Panel de Esquema */}
+      {currentNote && (
+        <DocumentOutline
+          content={currentNote.content_md}
+          isOpen={showOutline}
+          onToggle={() => setShowOutline(!showOutline)}
+          buttonRef={outlineButtonRef}
+          onNavigate={(line) => {
+            // En modo vista previa, buscar el elemento por ID y hacer scroll
+            const lines = currentNote.content_md.split('\n');
+            const targetLine = lines[line - 1];
+            
+            if (targetLine && targetLine.match(/^#{1,6}\s/)) {
+              const match = targetLine.match(/^(#{1,6})\s+(.+)$/);
+              if (match) {
+                const headerText = match[2].trim();
+                // Crear ID similar al que usa ReactMarkdown
+                const headerId = headerText.toLowerCase()
+                  .replace(/[^\w\s-]/g, '')
+                  .replace(/\s+/g, '-')
+                  .substring(0, 50);
+                
+                // Buscar el elemento en el DOM
+                const element = document.getElementById(headerId);
+                if (element) {
+                  element.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                  });
+                } else {
+                  // Fallback: buscar por texto del header
+                  const allHeaders = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+                  for (const header of allHeaders) {
+                    if (header.textContent?.includes(headerText)) {
+                      header.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' 
+                      });
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }}
+        />
+      )}
 
     </div>
   );

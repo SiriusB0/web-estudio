@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import CodeMirror from "@uiw/react-codemirror";
 import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate, WidgetType, scrollPastEnd, keymap } from "@codemirror/view";
 import { markdown } from "@codemirror/lang-markdown";
-import { HighlightStyle, syntaxHighlighting, syntaxTree, foldGutter, foldEffect, unfoldEffect, codeFolding } from "@codemirror/language";
+import { HighlightStyle, syntaxHighlighting, syntaxTree, foldGutter, foldEffect, unfoldEffect, codeFolding, foldService, foldedRanges, foldInside } from "@codemirror/language";
 import { lineNumbers } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import { headerColors, headerSizes } from "../../lib/theme";
@@ -53,130 +53,120 @@ export default function NoteEditor({
   onToggleFocusMode,
   onToggleSplitView
 }: NoteEditorProps) {
-  // Estado para controlar qué headers están plegados
-  const [foldedHeaders, setFoldedHeaders] = useState<Set<number>>(new Set());
 
   // Función para encontrar líneas de una sección
-  const findSectionLines = useCallback((content: string, headerLineNumber: number, headerLevel: number) => {
-    const lines = content.split('\n');
-    const sectionLines: number[] = [];
+  // Función para calcular el rango de plegado de un encabezado
+  const calculateFoldRange = useCallback((view: EditorView, headerLineNumber: number) => {
+    const doc = view.state.doc;
+    const headerLine = doc.line(headerLineNumber + 1); // +1 porque headerLineNumber es 0-indexed
+    const headerText = headerLine.text;
     
-    console.log('findSectionLines input:', { headerLineNumber, headerLevel, totalLines: lines.length });
-    console.log('Header line content:', lines[headerLineNumber]);
+    // Verificar si es un encabezado
+    const headerMatch = headerText.match(/^(#{1,6})\s/);
+    if (!headerMatch) return null;
     
-    // Empezar desde la línea SIGUIENTE al header
-    for (let i = headerLineNumber + 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      
-      console.log(`Checking line ${i}: "${line}"`);
-      
-      // Si encontramos otro header
-      if (line.startsWith('#')) {
-        const match = line.match(/^(#{1,6})\s/);
-        if (match) {
-          const currentLevel = match[1].length;
-          console.log(`Found header level ${currentLevel} at line ${i}`);
-          // Si es del mismo nivel o superior, termina la sección
-          if (currentLevel <= headerLevel) {
-            console.log(`Section ends at line ${i} (level ${currentLevel} <= ${headerLevel})`);
-            break;
+    const headerLevel = headerMatch[1].length;
+    const startLineNum = headerLine.number;
+    let endLineNum = doc.lines;
+    
+    console.log(`[FOLD CALC] Calculando rango para encabezado nivel ${headerLevel} en línea ${startLineNum}: "${headerText}"`);
+    
+    // Buscar el final de la sección
+    for (let lineNum = startLineNum + 1; lineNum <= doc.lines; lineNum++) {
+      try {
+        const currentLine = doc.line(lineNum);
+        const currentText = currentLine.text.trim();
+        
+        if (currentText.startsWith('#')) {
+          const currentHeaderMatch = currentText.match(/^(#{1,6})\s/);
+          if (currentHeaderMatch) {
+            const currentLevel = currentHeaderMatch[1].length;
+            console.log(`[FOLD CALC] Encontrado encabezado nivel ${currentLevel} en línea ${lineNum}`);
+            if (currentLevel <= headerLevel) {
+              endLineNum = lineNum - 1;
+              console.log(`[FOLD CALC] Sección termina en línea ${endLineNum}`);
+              break;
+            }
           }
         }
+      } catch (e) {
+        endLineNum = lineNum - 1;
+        break;
       }
-      
-      // Añadir esta línea a la sección (usar número de línea 1-indexed)
-      sectionLines.push(i + 1);
-      console.log(`Added line ${i + 1} to section`);
     }
     
-    console.log('Final sectionLines:', sectionLines);
-    return sectionLines;
+    // Verificar que hay contenido para plegar
+    if (endLineNum <= startLineNum) {
+      console.log(`[FOLD CALC] No hay contenido para plegar`);
+      return null;
+    }
+    
+    // Calcular posiciones exactas
+    const foldStart = headerLine.to; // Final de la línea del encabezado
+    const lastLine = doc.line(endLineNum);
+    const foldEnd = lastLine.to;
+    
+    console.log(`[FOLD CALC] Rango calculado: ${foldStart} -> ${foldEnd} (líneas ${startLineNum} -> ${endLineNum})`);
+    
+    return { from: foldStart, to: foldEnd };
   }, []);
 
-  // Función para plegar/desplegar sección
+  // Función para verificar si una línea está plegada usando la API nativa
+  const isLineFolded = useCallback((view: EditorView, lineNumber: number): boolean => {
+    const doc = view.state.doc;
+    const line = doc.line(lineNumber + 1); // +1 porque lineNumber es 0-indexed
+    
+    // Usar foldedRanges para obtener los rangos plegados
+    const folded = foldedRanges(view.state);
+    let found = false;
+    
+    folded.between(line.from, line.to, (from: number, to: number) => {
+      if (from >= line.from && from <= line.to) {
+        found = true;
+      }
+    });
+    
+    return found;
+  }, []);
+
+  // Función para plegar/desplegar sección con cálculo manual de rangos
   const toggleSection = useCallback((headerLineNumber: number, headerLevel: number) => {
     const editor = editorRef.current?.view;
     if (!editor) return;
     
-    const content = editor.state.doc.toString();
-    const lines = content.split('\n');
+    const isFolded = isLineFolded(editor, headerLineNumber);
     
-    console.log('Toggling section:', { headerLineNumber, headerLevel });
-    
-    const isFolded = foldedHeaders.has(headerLineNumber);
-    
-    // Encontrar el rango de líneas para plegar
-    let startLine = headerLineNumber + 1;
-    let endLine = lines.length;
-    
-    // Buscar dónde termina la sección
-    for (let i = startLine; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line.startsWith('#')) {
-        const match = line.match(/^(#{1,6})\s/);
-        if (match && match[1].length <= headerLevel) {
-          endLine = i;
-          break;
-        }
-      }
-    }
-    
-    if (startLine >= endLine) {
-      console.log('No hay contenido para plegar');
-      return;
-    }
-    
-    // Calcular posiciones en el documento
-    let fromPos = 0;
-    let toPos = 0;
-    
-    // Calcular posición de inicio (final de la línea del header)
-    for (let i = 0; i <= headerLineNumber; i++) {
-      if (i === headerLineNumber) {
-        fromPos += lines[i].length;
-      } else {
-        fromPos += lines[i].length + 1; // +1 por el \n
-      }
-    }
-    
-    // Calcular posición de fin
-    toPos = fromPos;
-    for (let i = startLine; i < endLine; i++) {
-      toPos += lines[i].length + 1; // +1 por el \n
-    }
-    
-    console.log('Fold range:', { fromPos, toPos, startLine, endLine });
+    console.log(`[TOGGLE] Clic en encabezado línea ${headerLineNumber} (nivel ${headerLevel}), isFolded: ${isFolded}`);
     
     try {
       if (isFolded) {
-        // Desplegar usando la API de CodeMirror
-        console.log('Desplegando con unfoldEffect');
-        editor.dispatch({
-          effects: unfoldEffect.of({ from: fromPos, to: toPos })
+        // Desplegar: buscar el rango plegado y desplegarlo
+        const folded = foldedRanges(editor.state);
+        const doc = editor.state.doc;
+        const headerLine = doc.line(headerLineNumber + 1);
+        
+        folded.between(headerLine.from, headerLine.to, (from: number, to: number) => {
+          console.log(`[TOGGLE] Desplegando rango ${from} -> ${to}`);
+          editor.dispatch({
+            effects: unfoldEffect.of({ from, to })
+          });
         });
       } else {
-        // Plegar usando la API de CodeMirror
-        console.log('Plegando con foldEffect');
-        editor.dispatch({
-          effects: foldEffect.of({ from: fromPos, to: toPos })
-        });
-      }
-      
-      // Actualizar estado
-      setFoldedHeaders(prev => {
-        const newSet = new Set(prev);
-        if (isFolded) {
-          newSet.delete(headerLineNumber);
+        // Plegar: calcular el rango y plegarlo
+        const foldRange = calculateFoldRange(editor, headerLineNumber);
+        if (foldRange) {
+          console.log(`[TOGGLE] Plegando rango ${foldRange.from} -> ${foldRange.to}`);
+          editor.dispatch({
+            effects: foldEffect.of(foldRange)
+          });
         } else {
-          newSet.add(headerLineNumber);
+          console.log(`[TOGGLE] No hay contenido para plegar`);
         }
-        console.log('Estado actualizado:', newSet);
-        return newSet;
-      });
+      }
     } catch (error) {
       console.error('Error en plegado:', error);
     }
-  }, [foldedHeaders]);
+  }, [isLineFolded, calculateFoldRange]);
 
   // Widget personalizado para flecha de plegado
   class HeaderFoldWidget extends WidgetType {
@@ -236,6 +226,7 @@ export default function NoteEditor({
   // Plugin para aplicar clases CSS a líneas de headers y añadir flechas de plegado
   const headerDecorationPlugin = ViewPlugin.fromClass(class {
     decorations: DecorationSet = Decoration.none;
+    private updateTimeout: NodeJS.Timeout | null = null;
 
     constructor(view: EditorView) {
       this.decorations = this.buildDecorations(view);
@@ -243,11 +234,14 @@ export default function NoteEditor({
 
     update(update: ViewUpdate) {
       if (update.docChanged || update.viewportChanged) {
-        // Usar requestAnimationFrame para asegurar que el DOM se actualice
-        requestAnimationFrame(() => {
+        // Debounce las actualizaciones para evitar congelamiento
+        if (this.updateTimeout) {
+          clearTimeout(this.updateTimeout);
+        }
+        
+        this.updateTimeout = setTimeout(() => {
           this.decorations = this.buildDecorations(update.view);
-          update.view.requestMeasure();
-        });
+        }, 100); // Reducir frecuencia de actualizaciones
       }
     }
 
@@ -281,7 +275,16 @@ export default function NoteEditor({
           );
           
           // Widget de flecha de plegado después de los símbolos #
-          const isFolded = foldedHeaders.has(line.number - 1);
+          // Detectar estado de plegado usando la API nativa de CodeMirror
+          const folded = foldedRanges(view.state);
+          let isFolded = false;
+          
+          folded.between(line.from, line.to, (from: number, to: number) => {
+            if (from >= line.from && from <= line.to) {
+              isFolded = true;
+            }
+          });
+          
           const hashEnd = line.from + hashSymbols.length;
           decorations.push(
             Decoration.widget({
@@ -349,6 +352,7 @@ export default function NoteEditor({
   // Plugin para renderizar colores de texto en tiempo real
   const colorTextPlugin = ViewPlugin.fromClass(class {
     decorations: DecorationSet = Decoration.none;
+    private colorUpdateTimeout: NodeJS.Timeout | null = null;
 
     constructor(view: EditorView) {
       this.decorations = this.buildColorDecorations(view);
@@ -356,10 +360,14 @@ export default function NoteEditor({
 
     update(update: ViewUpdate) {
       if (update.docChanged || update.viewportChanged || update.selectionSet) {
-        // Usar requestAnimationFrame para evitar parpadeos
-        requestAnimationFrame(() => {
+        // Debounce las actualizaciones de colores para mejorar rendimiento
+        if (this.colorUpdateTimeout) {
+          clearTimeout(this.colorUpdateTimeout);
+        }
+        
+        this.colorUpdateTimeout = setTimeout(() => {
           this.decorations = this.buildColorDecorations(update.view);
-        });
+        }, 50); // Actualización más rápida para colores pero con debounce
       }
     }
 
@@ -537,7 +545,10 @@ export default function NoteEditor({
     },
     '.cm-scroller': {
       backgroundColor: '#1e1e1e !important',
-      scrollPaddingBottom: '100px'
+      scrollPaddingBottom: '100px',
+      scrollBehavior: 'auto',
+      overflowY: 'auto',
+      overscrollBehavior: 'contain'
     },
     '.cm-focused': {
       backgroundColor: '#1e1e1e !important'
@@ -567,26 +578,6 @@ export default function NoteEditor({
     '.cm-theme': {
       backgroundColor: '#1e1e1e !important'
     },
-    // Ocultar completamente el foldGutter nativo
-    '.cm-foldGutter': {
-      display: 'none !important'
-    },
-    // Gutter styling - alineación correcta con headers
-    '.cm-gutters': {
-      color: 'rgba(171, 178, 191, 0.4)',
-      borderRight: '1px solid #33373f',
-    },
-    '.cm-gutterElement': {
-      fontSize: '0.75rem',
-      padding: '0 8px 0 0',
-      textAlign: 'right',
-      // Clave: usar line-height inherit para que coincida con el contenido
-      lineHeight: 'inherit',
-      minHeight: 'auto',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'flex-end'
-    },
     // Números de línea pequeños y discretos
     '.cm-lineNumbers .cm-gutterElement': {
       fontSize: '0.75rem',
@@ -605,12 +596,12 @@ export default function NoteEditor({
       backgroundColor: '#3e4451'
     },
     // Tamaños y colores de headers usando headerSizes y headerColors de theme.ts
-    '.cm-line.cm-h1': { fontSize: headerSizes.h1, fontWeight: 'bold', color: headerColors.h1 },
-    '.cm-line.cm-h2': { fontSize: headerSizes.h2, fontWeight: 'bold', color: headerColors.h2 },
-    '.cm-line.cm-h3': { fontSize: headerSizes.h3, fontWeight: 'bold', color: headerColors.h3 },
-    '.cm-line.cm-h4': { fontSize: headerSizes.h4, fontWeight: 'bold', color: headerColors.h4 },
-    '.cm-line.cm-h5': { fontSize: headerSizes.h5, fontWeight: 'bold', color: headerColors.h5 },
-    '.cm-line.cm-h6': { fontSize: headerSizes.h6, fontWeight: 'bold', color: headerColors.h6 }
+    '.cm-line.cm-h1': { fontSize: headerSizes.h1, fontWeight: '700', lineHeight: '1.25', color: headerColors.h1 },
+    '.cm-line.cm-h2': { fontSize: headerSizes.h2, fontWeight: '700', lineHeight: '1.25', color: headerColors.h2 },
+    '.cm-line.cm-h3': { fontSize: headerSizes.h3, fontWeight: '700', lineHeight: '1.25', color: headerColors.h3 },
+    '.cm-line.cm-h4': { fontSize: headerSizes.h4, fontWeight: '600', lineHeight: '1.375', color: headerColors.h4 },
+    '.cm-line.cm-h5': { fontSize: headerSizes.h5, fontWeight: '600', lineHeight: '1.375', color: headerColors.h5 },
+    '.cm-line.cm-h6': { fontSize: headerSizes.h6, fontWeight: '600', lineHeight: '1.375', color: headerColors.h6 }
   }, { dark: true });
 
   // Estilo de sintaxis personalizado SIN headers (para evitar conflicto con headerDecorationPlugin)
@@ -654,6 +645,8 @@ export default function NoteEditor({
   const [flashcardCount, setFlashcardCount] = useState<number>(0);
   const [showFlashcardViewer, setShowFlashcardViewer] = useState(false);
   const [showOutline, setShowOutline] = useState(false);
+  const [showEmojiDropdown, setShowEmojiDropdown] = useState(false);
+  const [showStructureDropdown, setShowStructureDropdown] = useState(false);
   const outlineButtonRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
   
@@ -771,14 +764,40 @@ export default function NoteEditor({
         setCurrentWikilink(partialText);
         setShowSuggestions(true);
         
-        // Calcular posición para el popup
-        const editorElement = editorRef.current?.view?.dom;
-        if (editorElement) {
-          const rect = editorElement.getBoundingClientRect();
-          setSuggestionPosition({
-            top: rect.top + 100, // Aproximado
-            left: rect.left + 20
-          });
+        // Calcular posición precisa para el popup usando coordsAtPos
+        const view = viewUpdate.view;
+        if (view) {
+          try {
+            const coords = view.coordsAtPos(cursor);
+            if (coords) {
+              // Obtener el rect del contenedor del editor para coordenadas absolutas
+              const editorRect = view.dom.getBoundingClientRect();
+              setSuggestionPosition({
+                top: coords.bottom + 4, // Justo debajo del cursor con pequeño margen
+                left: coords.left
+              });
+            } else {
+              // Fallback al método anterior si coordsAtPos falla
+              const editorElement = editorRef.current?.view?.dom;
+              if (editorElement) {
+                const rect = editorElement.getBoundingClientRect();
+                setSuggestionPosition({
+                  top: rect.top + 100,
+                  left: rect.left + 20
+                });
+              }
+            }
+          } catch (error) {
+            // Fallback silencioso en caso de error
+            const editorElement = editorRef.current?.view?.dom;
+            if (editorElement) {
+              const rect = editorElement.getBoundingClientRect();
+              setSuggestionPosition({
+                top: rect.top + 100,
+                left: rect.left + 20
+              });
+            }
+          }
         }
         
         debouncedSearch(partialText);
@@ -866,7 +885,41 @@ export default function NoteEditor({
     setCurrentWikilink("");
   }, []);
 
-  const handleToolbarInsert = useCallback((prefix: string, suffix: string = "", wrapSelection: boolean = false) => {
+  const handleRemoveColor = () => {
+    const view = editorRef.current?.view;
+    if (!view) return;
+
+    const { state } = view;
+    const { from, to } = state.selection.main;
+
+    // Regex para encontrar el bloque de color completo
+    const colorBlockRegex = /{#([a-fA-F0-9#]{3,7})\|(.*?)}/g;
+    const docText = state.doc.toString();
+
+    let match;
+    while ((match = colorBlockRegex.exec(docText)) !== null) {
+      const matchFrom = match.index;
+      const matchTo = match.index + match[0].length;
+
+      // Comprobar si la selección del usuario está dentro de este bloque de color
+      if (from >= matchFrom && to <= matchTo) {
+        const textContent = match[2]; // El texto dentro del bloque
+        
+        view.dispatch({
+          changes: {
+            from: matchFrom,
+            to: matchTo,
+            insert: textContent,
+          },
+          selection: { anchor: matchFrom, head: matchFrom + textContent.length },
+          scrollIntoView: true,
+        });
+        return; // Salir después de encontrar y procesar el bloque
+      }
+    }
+  };
+
+  const handleToolbarInsert = useCallback((prefix: string, suffix = '', wrapSelection = false) => {
     const view = editorRef.current?.view;
     if (!view) return;
 
@@ -1128,53 +1181,90 @@ export default function NoteEditor({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [pendingQuestion, noteId, noteTitle]);
 
-  // Scroll sincronizado
+  // Scroll sincronizado mejorado con debounce
   useEffect(() => {
     const editorEl = editorContainerRef.current?.querySelector('.cm-scroller');
     const previewEl = previewContainerRef.current;
 
     if (!isSplitView || !editorEl || !previewEl) return;
 
-    let editorScrolling = false;
-    let previewScrolling = false;
+    let editorScrollTimeout: NodeJS.Timeout | null = null;
+    let previewScrollTimeout: NodeJS.Timeout | null = null;
+    let isEditorScrolling = false;
+    let isPreviewScrolling = false;
 
     const handleEditorScroll = () => {
-      if (previewScrolling) return;
-      editorScrolling = true;
-      const percentage = editorEl.scrollTop / (editorEl.scrollHeight - editorEl.clientHeight);
-      previewEl.scrollTop = percentage * (previewEl.scrollHeight - previewEl.clientHeight);
-      setTimeout(() => { editorScrolling = false; }, 100);
+      if (isPreviewScrolling) return;
+      
+      isEditorScrolling = true;
+      
+      if (editorScrollTimeout) {
+        clearTimeout(editorScrollTimeout);
+      }
+      
+      editorScrollTimeout = setTimeout(() => {
+        if (editorEl && previewEl && editorEl.scrollHeight > editorEl.clientHeight) {
+          const percentage = editorEl.scrollTop / (editorEl.scrollHeight - editorEl.clientHeight);
+          const targetScrollTop = percentage * (previewEl.scrollHeight - previewEl.clientHeight);
+          
+          if (isFinite(targetScrollTop) && targetScrollTop >= 0) {
+            previewEl.scrollTop = targetScrollTop;
+          }
+        }
+        isEditorScrolling = false;
+      }, 16); // ~60fps
     };
 
     const handlePreviewScroll = () => {
-      if (editorScrolling) return;
-      previewScrolling = true;
-      const percentage = previewEl.scrollTop / (previewEl.scrollHeight - previewEl.clientHeight);
-      editorEl.scrollTop = percentage * (editorEl.scrollHeight - editorEl.clientHeight);
-      setTimeout(() => { previewScrolling = false; }, 100);
+      if (isEditorScrolling) return;
+      
+      isPreviewScrolling = true;
+      
+      if (previewScrollTimeout) {
+        clearTimeout(previewScrollTimeout);
+      }
+      
+      previewScrollTimeout = setTimeout(() => {
+        if (editorEl && previewEl && previewEl.scrollHeight > previewEl.clientHeight) {
+          const percentage = previewEl.scrollTop / (previewEl.scrollHeight - previewEl.clientHeight);
+          const targetScrollTop = percentage * (editorEl.scrollHeight - editorEl.clientHeight);
+          
+          if (isFinite(targetScrollTop) && targetScrollTop >= 0) {
+            editorEl.scrollTop = targetScrollTop;
+          }
+        }
+        isPreviewScrolling = false;
+      }, 16); // ~60fps
     };
 
-    editorEl.addEventListener('scroll', handleEditorScroll);
-    previewEl.addEventListener('scroll', handlePreviewScroll);
+    editorEl.addEventListener('scroll', handleEditorScroll, { passive: true });
+    previewEl.addEventListener('scroll', handlePreviewScroll, { passive: true });
 
     return () => {
+      if (editorScrollTimeout) clearTimeout(editorScrollTimeout);
+      if (previewScrollTimeout) clearTimeout(previewScrollTimeout);
       editorEl.removeEventListener('scroll', handleEditorScroll);
       previewEl.removeEventListener('scroll', handlePreviewScroll);
     };
-  }, [isSplitView, content]);
+  }, [isSplitView]);
 
   return (
     <div className="h-full flex flex-col">
       {/* Status bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-900 text-xs text-gray-300" style={{backgroundColor: '#0f0f0f'}}>
-        <div className="flex items-center gap-4">
-          <span>Markdown</span>
-          {saving && <span className="text-blue-400">Guardando...</span>}
-          <span>{content.length} caracteres</span>
-          <span>•</span>
-          <span>{content.trim() ? content.trim().split(/\s+/).length : 0} palabras</span>
-          <span>•</span>
-          <span>{content.split('\n').length} líneas</span>
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-800/50 text-xs text-gray-400" style={{backgroundColor: '#0a0a0a'}}>
+        <div className="flex items-center gap-3">
+          <span className="text-gray-500 font-medium">MD</span>
+          {saving && <span className="text-blue-400 text-xs">●</span>}
+          <div className="flex items-center gap-2 text-xs">
+            <span>{content.length.toLocaleString()}</span>
+            <span className="text-gray-600 text-xs">caracteres</span>
+            <span className="text-gray-600">·</span>
+            <span>{content.trim() ? content.trim().split(/\s+/).length.toLocaleString() : 0}</span>
+            <span className="text-gray-600 text-xs">palabras</span>
+            <span className="text-gray-600">·</span>
+            <span>{content.split('\n').length.toLocaleString()}</span>
+            <span className="text-gray-600 text-xs">líneas</span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {viewMode === "edit" && (
@@ -1239,133 +1329,441 @@ export default function NoteEditor({
       </div>
 
       {/* Markdown Toolbar */}
-      {isFocusMode ? (
-        <div className="flex items-center gap-1 p-2 border-b border-gray-900 relative" style={{backgroundColor: '#0f0f0f'}}>
-          <button 
-            title="Negrita" 
-            onClick={() => handleToolbarInsert('**', '**', true)}
-            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors font-bold"
+      {viewMode === "edit" && (
+      <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-800/50" style={{backgroundColor: '#0a0a0a'}}>
+        <button 
+          title="Negrita" 
+          onClick={() => handleToolbarInsert('**', '**', true)}
+          className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors font-bold flex items-center justify-center"
+        >
+          B
+        </button>
+        <button 
+          title="Cursiva" 
+          onClick={() => handleToolbarInsert('*', '*', true)}
+          className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors italic flex items-center justify-center"
+        >
+          I
+        </button>
+        <button 
+          title="Código inline" 
+          onClick={() => handleToolbarInsert('`', '`', true)}
+          className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors font-mono flex items-center justify-center"
+        >
+          &lt;/&gt;
+        </button>
+        <button 
+          title="Bloque de código" 
+          onClick={() => handleToolbarInsert('```\n', '\n```', false)}
+          className="w-8 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors font-mono flex items-center justify-center"
+        >
+          ```
+        </button>
+        <button 
+          title="Lista" 
+          onClick={() => handleToolbarInsert('- ', '', false)}
+          className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
+        >
+          •
+        </button>
+        <button 
+          title="Lista numerada" 
+          onClick={() => handleToolbarInsert('1. ', '', false)}
+          className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
+        >
+          1.
+        </button>
+        <button 
+          title="Cita" 
+          onClick={() => handleToolbarInsert('> ', '', false)}
+          className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
+        >
+          ❝
+        </button>
+        <button 
+          title="Enlace" 
+          onClick={() => handleToolbarInsert('[', '](url)', true)}
+          className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
+        >
+          🔗
+        </button>
+        
+        {/* Separador */}
+        <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
+        
+        {/* Botones de colores */}
+        <button 
+          title="Texto rojo" 
+          onClick={() => handleColorInsert('#ef4444')}
+          className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+          style={{backgroundColor: '#ef4444'}}
+        ></button>
+        <button 
+          title="Texto azul" 
+          onClick={() => handleColorInsert('#3b82f6')}
+          className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+          style={{backgroundColor: '#3b82f6'}}
+        ></button>
+        <button 
+          title="Texto verde" 
+          onClick={() => handleColorInsert('#22c55e')}
+          className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+          style={{backgroundColor: '#22c55e'}}
+        ></button>
+        <button 
+          title="Texto amarillo" 
+          onClick={() => handleColorInsert('#eab308')}
+          className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+          style={{backgroundColor: '#eab308'}}
+        ></button>
+        <button 
+          title="Texto naranja" 
+          onClick={() => handleColorInsert('#f97316')}
+          className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+          style={{backgroundColor: '#f97316'}}
+        ></button>
+        <button 
+          title="Texto morado" 
+          onClick={() => handleColorInsert('#a855f7')}
+          className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
+          style={{backgroundColor: '#a855f7'}}
+        ></button>
+
+        <button
+          title="Quitar color"
+          onClick={handleRemoveColor}
+          className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors flex items-center justify-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><line x1="2" x2="22" y1="12" y2="12"/></svg>
+        </button>
+        
+        {/* Separador */}
+        <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
+        
+        {/* Dropdown de emojis */}
+        <div className="relative">
+          <button
+            onClick={() => setShowEmojiDropdown(!showEmojiDropdown)}
+            className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
+            title="Emojis por categorías"
           >
-            B
+            😀
           </button>
-          <button 
-            title="Cursiva" 
-            onClick={() => handleToolbarInsert('*', '*', true)}
-            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors italic"
-          >
-            I
-          </button>
-          <button 
-            title="Código inline" 
-            onClick={() => handleToolbarInsert('`', '`', true)}
-            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors font-mono text-xs"
-          >
-            &lt;/&gt;
-          </button>
-          <button 
-            title="Bloque de código" 
-            onClick={() => handleToolbarInsert('```\n', '\n```')}
-            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors font-mono text-xs"
-          >
-            ```
-          </button>
-          <button 
-            title="Lista" 
-            onClick={() => handleToolbarInsert('- ', '')}
-            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors"
-          >
-            •
-          </button>
-          <button 
-            title="Lista numerada" 
-            onClick={() => handleToolbarInsert('1. ', '')}
-            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors"
-          >
-            1.
-          </button>
-          <button 
-            title="Cita" 
-            onClick={() => handleToolbarInsert('> ', '')}
-            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors"
-          >
-            ❝
-          </button>
-          <button 
-            title="Enlace" 
-            onClick={() => handleToolbarInsert('[', '](url)')}
-            className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors"
-          >
-            🔗
-          </button>
-          <div className="w-px h-4 bg-gray-600 mx-1"></div>
-          <button 
-            title="Texto rojo" 
-            onClick={() => handleColorInsert('#ef4444')}
-            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
-            style={{backgroundColor: '#ef4444'}}
-          ></button>
-          <button 
-            title="Texto azul" 
-            onClick={() => handleColorInsert('#3b82f6')}
-            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
-            style={{backgroundColor: '#3b82f6'}}
-          ></button>
-          <button 
-            title="Texto verde" 
-            onClick={() => handleColorInsert('#22c55e')}
-            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
-            style={{backgroundColor: '#22c55e'}}
-          ></button>
-          <button 
-            title="Texto amarillo" 
-            onClick={() => handleColorInsert('#eab308')}
-            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
-            style={{backgroundColor: '#eab308'}}
-          ></button>
-          <button 
-            title="Texto naranja" 
-            onClick={() => handleColorInsert('#f97316')}
-            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
-            style={{backgroundColor: '#f97316'}}
-          ></button>
-          <button 
-            title="Texto morado" 
-            onClick={() => handleColorInsert('#a855f7')}
-            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
-            style={{backgroundColor: '#a855f7'}}
-          ></button>
+          
+          {showEmojiDropdown && (
+            <div className="absolute top-8 left-0 bg-gray-900/95 border border-gray-700 rounded-lg shadow-2xl backdrop-blur-sm p-3 z-50 w-80">
+              <div className="max-h-64 overflow-y-auto">
+                {/* General */}
+                <div className="mb-3">
+                  <div className="text-xs text-gray-400 mb-2 font-medium">General</div>
+                  <div className="grid grid-cols-8 gap-1">
+                    {['📁', '📌', '✅', '⚠️', '🔧', '📚', '📝', '📖', '📑', '🗂️', '🧾', '🖊️'].map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => {
+                          handleToolbarInsert(emoji, '', false);
+                          setShowEmojiDropdown(false);
+                        }}
+                        className="p-1 hover:bg-gray-700/50 rounded text-sm"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tecnología */}
+                <div className="mb-3">
+                  <div className="text-xs text-gray-400 mb-2 font-medium">Tecnología</div>
+                  <div className="grid grid-cols-8 gap-1">
+                    {['💻', '👨‍💻', '👩‍💻', '⚙️', '🔒', '🧩', '🖱️', '⌨️'].map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => {
+                          handleToolbarInsert(emoji, '', false);
+                          setShowEmojiDropdown(false);
+                        }}
+                        className="p-1 hover:bg-gray-700/50 rounded text-sm"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Estado */}
+                <div className="mb-3">
+                  <div className="text-xs text-gray-400 mb-2 font-medium">Estado</div>
+                  <div className="grid grid-cols-8 gap-1">
+                    {['⏳', '⌛', '🟢', '🔴', '🟡', '🔵', '📊'].map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => {
+                          handleToolbarInsert(emoji, '', false);
+                          setShowEmojiDropdown(false);
+                        }}
+                        className="p-1 hover:bg-gray-700/50 rounded text-sm"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Alertas */}
+                <div className="mb-3">
+                  <div className="text-xs text-gray-400 mb-2 font-medium">Alertas</div>
+                  <div className="grid grid-cols-8 gap-1">
+                    {['❗', '❓', '🚨', '🛑', '🔍', '🧭'].map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => {
+                          handleToolbarInsert(emoji, '', false);
+                          setShowEmojiDropdown(false);
+                        }}
+                        className="p-1 hover:bg-gray-700/50 rounded text-sm"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Herramientas */}
+                <div className="mb-3">
+                  <div className="text-xs text-gray-400 mb-2 font-medium">Herramientas</div>
+                  <div className="grid grid-cols-8 gap-1">
+                    {['🪛', '🛠️', '🧪', '🔬', '🗜️'].map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => {
+                          handleToolbarInsert(emoji, '', false);
+                          setShowEmojiDropdown(false);
+                        }}
+                        className="p-1 hover:bg-gray-700/50 rounded text-sm"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Varios */}
+                <div>
+                  <div className="text-xs text-gray-400 mb-2 font-medium">Varios</div>
+                  <div className="grid grid-cols-8 gap-1">
+                    {['🖥️', '🗄️', '💾', '🧮', '🧵', '📦', '🌐', '🔗', '📡', '🛰️', '⚡', '🔥', '🌀', '🔄', '🗃️', '🛜', '🪟', '🖇️', '💡', '📜'].map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => {
+                          handleToolbarInsert(emoji, '', false);
+                          setShowEmojiDropdown(false);
+                        }}
+                        className="p-1 hover:bg-gray-700/50 rounded text-sm"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      ) : (
-        <MarkdownToolbar 
-          onInsert={handleToolbarInsert}
-          onColorInsert={handleColorInsert}
-          viewMode={viewMode}
-          flashcardCount={flashcardCount}
-          pendingQuestion={pendingQuestion}
-          onViewFlashcards={() => setShowFlashcardViewer(true)}
-          onStudyFlashcards={() => {
-            if (noteId) {
-              window.location.href = `/study/${noteId}`;
-            }
-          }}
-        />
+        
+        {/* Dropdown de estructura */}
+        <div className="relative">
+          <button
+            onClick={() => setShowStructureDropdown(!showStructureDropdown)}
+            className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
+            title="Separadores y estructura"
+          >
+            ├─
+          </button>
+          
+          {showStructureDropdown && (
+            <div className="absolute top-8 left-0 bg-gray-900/95 border border-gray-700 rounded-lg shadow-2xl backdrop-blur-sm p-3 z-50 w-48">
+              <div className="text-xs text-gray-400 mb-2 font-medium">Estructura</div>
+              <div className="flex flex-col gap-1">
+                <button
+                  onClick={() => {
+                    handleToolbarInsert('├── ', '', false);
+                    setShowStructureDropdown(false);
+                  }}
+                  className="text-left px-2 py-1 hover:bg-gray-700/50 rounded text-xs text-gray-300 font-mono"
+                >
+                  ├── (Rama)
+                </button>
+                <button
+                  onClick={() => {
+                    handleToolbarInsert('│   ', '', false);
+                    setShowStructureDropdown(false);
+                  }}
+                  className="text-left px-2 py-1 hover:bg-gray-700/50 rounded text-xs text-gray-300 font-mono"
+                >
+                  │ (Línea vertical)
+                </button>
+                <button
+                  onClick={() => {
+                    handleToolbarInsert('└── ', '', false);
+                    setShowStructureDropdown(false);
+                  }}
+                  className="text-left px-2 py-1 hover:bg-gray-700/50 rounded text-xs text-gray-300 font-mono"
+                >
+                  └── (Final)
+                </button>
+                <div className="border-t border-gray-700 my-2"></div>
+                <div className="text-xs text-gray-400 mb-1 font-medium">Checkboxes</div>
+                <button
+                  onClick={() => {
+                    handleToolbarInsert('- [ ] ', '', false);
+                    setShowStructureDropdown(false);
+                  }}
+                  className="text-left px-2 py-1 hover:bg-gray-700/50 rounded text-xs text-gray-300 font-mono"
+                >
+                  [ ] (Sin marcar)
+                </button>
+                <button
+                  onClick={() => {
+                    handleToolbarInsert('- [x] ', '', false);
+                    setShowStructureDropdown(false);
+                  }}
+                  className="text-left px-2 py-1 hover:bg-gray-700/50 rounded text-xs text-gray-300 font-mono"
+                >
+                  [x] (Marcado)
+                </button>
+                <div className="border-t border-gray-700 my-2"></div>
+                <div className="text-xs text-gray-400 mb-1 font-medium">Separadores</div>
+                <button
+                  onClick={() => {
+                    handleToolbarInsert('\n---\n', '', false);
+                    setShowStructureDropdown(false);
+                  }}
+                  className="text-left px-2 py-1 hover:bg-gray-700/50 rounded text-xs text-gray-300"
+                >
+                  --- (Línea horizontal)
+                </button>
+                <button
+                  onClick={() => {
+                    handleToolbarInsert('\n***\n', '', false);
+                    setShowStructureDropdown(false);
+                  }}
+                  className="text-left px-2 py-1 hover:bg-gray-700/50 rounded text-xs text-gray-300"
+                >
+                  *** (Separador grueso)
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Separador */}
+        <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
+        
+        {/* Información de flashcards */}
+        {pendingQuestion ? (
+          <span className="text-xs text-yellow-400 bg-yellow-900/30 px-2 py-1 rounded">
+            ⏳ Pregunta pendiente
+          </span>
+        ) : (
+          <span className="text-xs text-blue-400 bg-blue-900/30 px-2 py-1 rounded">
+            📚 {flashcardCount} flashcards
+          </span>
+        )}
+        
+        {/* Botones de flashcards */}
+        {flashcardCount > 0 && (
+          <>
+            <button
+              onClick={() => setShowFlashcardViewer(true)}
+              className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
+              title="Ver flashcards"
+            >
+              👁️
+            </button>
+            <button
+              onClick={() => {
+                if (noteId) {
+                  window.location.href = `/study/${noteId}`;
+                }
+              }}
+              className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
+              title="Estudiar flashcards"
+            >
+              🎓
+            </button>
+          </>
+        )}
+        </div>
       )}
 
       {/* Editor or Preview */}
-      <div className="flex-1 overflow-hidden relative flex" ref={editorContainerRef}>
+      <div className="flex-1 overflow-hidden relative flex bg-[#1e1e1e]" ref={editorContainerRef}>
         {isSplitView ? (
           <div className="flex w-full h-full">
-            <div className="w-1/2 h-full overflow-auto relative" style={{ backgroundColor: '#1e1e1e' }}>
+            <div className="w-1/2 h-full overflow-y-auto relative" style={{ backgroundColor: '#1e1e1e' }}>
+              <div className="max-w-5xl mx-auto px-6 h-full">
+                <CodeMirror
+                  ref={editorRef}
+                  value={content}
+                  onChange={handleChange}
+                  className="h-full w-full text-base"
+                  style={{ backgroundColor: '#1e1e1e' }}
+                  extensions={[
+                    lineNumbers(),
+                    markdown(),
+                    EditorView.lineWrapping,
+                    scrollPastEnd(),
+                    colorKeymap,
+                    syntaxHighlighting(customSyntaxHighlighting),
+                    headerDecorationPlugin,
+                    hashSymbolPlugin,
+                    colorTextPlugin,
+                  ]}
+                  theme={customDarkTheme}
+                  basicSetup={{
+                    lineNumbers: false,
+                    foldGutter: false,
+                    dropCursor: false,
+                    allowMultipleSelections: false,
+                    indentOnInput: true,
+                    bracketMatching: true,
+                    closeBrackets: true,
+                    autocompletion: true,
+                    highlightSelectionMatches: false,
+                    searchKeymap: true,
+                  }}
+                />
+                {showSuggestions && (
+                  <WikilinkSuggestions
+                    suggestions={suggestions}
+                    position={suggestionPosition}
+                    onSelect={handleSuggestionSelect}
+                    onClose={handleSuggestionsClose}
+                  />
+                )}
+              </div>
+            </div>
+            <div className="w-1/2 h-full overflow-y-auto border-l border-gray-700" ref={previewContainerRef}>
+              <div className="max-w-5xl mx-auto px-6 py-4">
+                <NotePreview content={content} onWikiLinkClick={handleWikiLinkClick} />
+              </div>
+            </div>
+          </div>
+        ) : viewMode === "edit" ? (
+          <div className="w-full h-full" style={{ backgroundColor: '#1e1e1e', overflow: 'hidden' }}>
+            <div className="max-w-5xl mx-auto px-6 h-full" style={{ overflow: 'auto' }}>
               <CodeMirror
                 ref={editorRef}
                 value={content}
                 onChange={handleChange}
                 className="h-full w-full text-base"
-                style={{ backgroundColor: '#1e1e1e' }}
+                style={{ backgroundColor: '#1e1e1e', height: '100%' }}
                 extensions={[
                   lineNumbers(),
                   markdown(),
                   EditorView.lineWrapping,
+                  codeFolding(),
                   scrollPastEnd(),
                   colorKeymap,
                   syntaxHighlighting(customSyntaxHighlighting),
@@ -1396,70 +1794,26 @@ export default function NoteEditor({
                 />
               )}
             </div>
-            <div className="w-1/2 h-full overflow-y-auto border-l border-gray-700 p-4" ref={previewContainerRef}>
+          </div>
+        ) : (
+          <div className="w-full h-full" style={{ overflow: 'auto' }}>
+            <div className="max-w-5xl mx-auto px-6 py-4">
               <NotePreview content={content} onWikiLinkClick={handleWikiLinkClick} />
             </div>
           </div>
-        ) : viewMode === "edit" ? (
-          <div className="flex-1 overflow-auto relative h-full" style={{ backgroundColor: '#1e1e1e' }}>
-            <CodeMirror
-              ref={editorRef}
-              value={content}
-              onChange={handleChange}
-              className="h-full w-full text-base"
-              style={{ backgroundColor: '#1e1e1e' }}
-              extensions={[
-                lineNumbers(),
-                markdown(),
-                EditorView.lineWrapping,
-                codeFolding(),
-                scrollPastEnd(),
-                colorKeymap,
-                syntaxHighlighting(customSyntaxHighlighting),
-                headerDecorationPlugin,
-                hashSymbolPlugin,
-                colorTextPlugin,
-              ]}
-              theme={customDarkTheme}
-              basicSetup={{
-                lineNumbers: false,
-                foldGutter: false,
-                dropCursor: false,
-                allowMultipleSelections: false,
-                indentOnInput: true,
-                bracketMatching: true,
-                closeBrackets: true,
-                autocompletion: true,
-                highlightSelectionMatches: false,
-                searchKeymap: true,
-              }}
-            />
-            {showSuggestions && (
-              <WikilinkSuggestions
-                suggestions={suggestions}
-                position={suggestionPosition}
-                onSelect={handleSuggestionSelect}
-                onClose={handleSuggestionsClose}
-              />
-            )}
-          </div>
-        ) : (
-          <div className="h-full overflow-y-auto p-4">
-            <NotePreview content={content} onWikiLinkClick={handleWikiLinkClick} />
-          </div>
+        )}
+
+        {/* Modal de flashcards */}
+        {showFlashcardViewer && noteId && noteTitle && (
+          <FlashcardViewer
+            noteId={noteId}
+            noteTitle={noteTitle}
+            isOpen={showFlashcardViewer}
+            onClose={() => setShowFlashcardViewer(false)}
+            onFlashcardsChange={loadFlashcardCount}
+          />
         )}
       </div>
-      
-      {/* Modal de flashcards */}
-      {showFlashcardViewer && noteId && noteTitle && (
-        <FlashcardViewer
-          noteId={noteId}
-          noteTitle={noteTitle}
-          isOpen={showFlashcardViewer}
-          onClose={() => setShowFlashcardViewer(false)}
-          onFlashcardsChange={loadFlashcardCount}
-        />
-      )}
 
       {/* Document Outline */}
       {showOutline && (

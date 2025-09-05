@@ -50,9 +50,11 @@ interface FileExplorerProps {
   onNewFolder?: () => void;
   selectedNoteId?: string;
   onMoveNote?: (noteId: string, targetFolderId: string | null) => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export default function FileExplorer({ onNoteSelect, onNewNote, onNewFolder, selectedNoteId, onMoveNote }: FileExplorerProps) {
+export default function FileExplorer({ onNoteSelect, onNewNote, onNewFolder, selectedNoteId, onMoveNote, isCollapsed, onToggleCollapse }: FileExplorerProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -863,20 +865,20 @@ Escribe aquí tu contenido...`;
         )}
         
         <div
-          className={`flex items-center py-1 px-2 cursor-pointer group transition-all duration-200 relative ${
+          className={`flex items-center py-0.5 px-2 cursor-pointer group transition-all duration-200 relative ${
             item.type === "note" && selectedNoteId === item.id 
-              ? "bg-blue-600/80 text-blue-100 border-l-2 border-blue-400" 
+              ? "bg-gray-700/20 text-gray-100 border-l-2 border-blue-500" 
               : item.type === "folder" && selectedFolderId === item.id
-                ? "bg-gray-700/80 text-gray-100 border-l-2 border-gray-400"
+                ? "bg-gray-700/20 text-gray-100 border-l-2 border-blue-500"
                 : isSelected 
-                  ? "bg-blue-600 text-blue-100" 
-                  : "text-gray-300"
+                  ? "bg-gray-700/20 text-gray-100" 
+                  : "text-gray-400"
           } ${
             item.type === "note" && selectedNoteId === item.id
-              ? "hover:bg-blue-600/90"
+              ? "hover:bg-gray-700/30"
               : item.type === "folder" && selectedFolderId === item.id
-                ? "hover:bg-gray-700/90"
-                : "hover:bg-gray-800"
+                ? "hover:bg-gray-700/30"
+                : "hover:bg-gray-800/30"
           } ${
             draggedItem?.id === item.id && isDragging 
               ? "opacity-50 scale-95" 
@@ -911,7 +913,7 @@ Escribe aquí tu contenido...`;
               ) : (
                 <ChevronRightIcon className="w-4 h-4 mr-1" />
               )}
-              <FolderIcon className="w-4 h-4 mr-2 text-blue-400" />
+              <FolderIcon className="w-4 h-4 mr-2 text-gray-400" />
             </>
           )}
           {item.type === "note" && (
@@ -953,7 +955,11 @@ Escribe aquí tu contenido...`;
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <span className="text-sm truncate flex-1">{item.name}</span>
+            <span className="text-sm flex-1 overflow-hidden">
+              <span className="block truncate" title={item.name}>
+                {item.name.length > 25 ? `${item.name.substring(0, 25)}...` : item.name}
+              </span>
+            </span>
           )}
           {item.type === "note" && editingItem?.id !== item.id && (
             <div className="flex items-center gap-1">
@@ -1052,25 +1058,34 @@ Escribe aquí tu contenido...`;
   }
 
   return (
-    <div className="h-full border-r border-gray-900 flex flex-col" style={{backgroundColor: '#1a1a1a'}}>
+    <div className={`h-full border-r border-gray-900 flex flex-col transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-72'}`} style={{backgroundColor: '#1a1a1a'}}>
       {/* Header */}
-      <div className="p-4 border-b border-gray-900" style={{backgroundColor: '#0f0f0f'}}>
+      <div className="px-3 py-2.5 border-b border-gray-800/50" style={{backgroundColor: '#0a0a0a'}}>
         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-gray-200">Explorador</h2>
+          {!isCollapsed && <h2 className="text-sm font-medium text-gray-300">Explorador</h2>}
+          <button
+            onClick={onToggleCollapse}
+            className="p-1 hover:bg-gray-700/50 rounded text-gray-500 hover:text-gray-300 transition-colors"
+            title={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+          >
+            <svg className={`w-4 h-4 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
         </div>
-        <div className="flex gap-2 mt-2">
-          <Link href="/dashboard" className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors group border border-gray-700 hover:border-gray-600" title="Ir al Dashboard">
-              <HomeIcon className="w-5 h-5 text-white" />
+        {!isCollapsed && <div className="flex gap-1.5 mt-2">
+          <Link href="/dashboard" className="p-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded transition-colors border border-gray-700/50 hover:border-gray-600/50" title="Ir al Dashboard">
+              <HomeIcon className="w-4 h-4 text-white" />
           </Link>
           <button
             onClick={(e) => {
               e.stopPropagation();
               createFolder();
             }}
-            className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors group border border-gray-700 hover:border-gray-600"
+            className="p-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded transition-colors border border-gray-700/50 hover:border-gray-600/50"
             title={selectedFolderId ? "Nueva Subcarpeta" : "Nueva Carpeta"}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" className="text-white">
+            <svg width="16" height="16" viewBox="0 0 24 24" className="text-white">
               <path fill="currentColor" d="m12.5,14.5h3.5v1h-3.5v3.5h-1v-3.5h-3.5v-1h3.5v-3.5h1v3.5Zm11.5-9v17.5H0V3.5C0,2.122,1.121,1,2.5,1h5.618l4,2h9.382c1.379,0,2.5,1.122,2.5,2.5ZM1,3.5v3.5h22v-1.5c0-.827-.673-1.5-1.5-1.5h-9.618l-4-2H2.5c-.827,0-1.5.673-1.5,1.5Zm22,18.5v-14H1v14h22Z"/>
             </svg>
           </button>
@@ -1079,17 +1094,17 @@ Escribe aquí tu contenido...`;
               e.stopPropagation();
               onNewNote();
             }}
-            className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors group border border-gray-700 hover:border-gray-600"
+            className="p-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded transition-colors border border-gray-700/50 hover:border-gray-600/50"
             title="Nueva Nota"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" className="text-white">
+            <svg width="16" height="16" viewBox="0 0 24 24" className="text-white">
               <path fill="currentColor" d="M14.707,0H4.5c-1.379,0-2.5,1.122-2.5,2.5v21.5h20V7.293L14.707,0Zm.293,1.707l5.293,5.293h-5.293V1.707ZM3,23V2.5c0-.827.673-1.5,1.5-1.5h9.5v7h7v15H3Zm9.5-8.5h3.5v1h-3.5v3.5h-1v-3.5h-3.5v-1h3.5v-3.5h1v3.5Z"/>
             </svg>
           </button>
-        </div>
+        </div>}
         
         {/* Selection Controls */}
-        {selectedNotes.size > 0 && (
+        {!isCollapsed && selectedNotes.size > 0 && (
           <div className="bg-gray-900 rounded p-2 text-sm">
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-300">{selectedNotes.size} seleccionadas</span>
@@ -1125,18 +1140,52 @@ Escribe aquí tu contenido...`;
 
       {/* Tree View */}
       <div className="flex-1 overflow-y-auto">
-        {tree.map((item: TreeItem) => renderTreeItem(item))}
-        {tree.length === 0 && (
-          <div className="p-4 text-sm text-gray-400 text-center">
-            No hay notas aún.
-            <br />
-            <button
-              onClick={() => onNewNote()}
-              className="text-blue-400 hover:underline mt-2"
-            >
-              Crear primera nota
-            </button>
+        {isCollapsed ? (
+          <div className="p-2 space-y-1">
+            {tree.map((item: TreeItem) => (
+              <div key={item.id} className="flex justify-center">
+                <button
+                  onClick={() => {
+                    if (item.type === "folder") {
+                      setSelectedFolderId(selectedFolderId === item.id ? null : item.id);
+                      toggleFolder(item.id);
+                    } else {
+                      onNoteSelect(item.id);
+                    }
+                  }}
+                  className={`p-2 rounded hover:bg-gray-700/50 transition-colors ${
+                    (item.type === "note" && selectedNoteId === item.id) || 
+                    (item.type === "folder" && selectedFolderId === item.id)
+                      ? "bg-gray-700/30 text-gray-100"
+                      : "text-gray-400"
+                  }`}
+                  title={item.name}
+                >
+                  {item.type === "folder" ? (
+                    <FolderIcon className="w-5 h-5" />
+                  ) : (
+                    <DocumentTextIcon className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            ))}
           </div>
+        ) : (
+          <>
+            {tree.map((item: TreeItem) => renderTreeItem(item))}
+            {tree.length === 0 && (
+              <div className="p-4 text-sm text-gray-400 text-center">
+                No hay notas aún.
+                <br />
+                <button
+                  onClick={() => onNewNote()}
+                  className="text-blue-400 hover:underline mt-2"
+                >
+                  Crear primera nota
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

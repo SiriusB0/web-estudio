@@ -57,3 +57,52 @@ body {
   background-color: #3b82f6 !important;
   color: white !important;
 }
+
+
+/* Ocultar números de línea de CodeMirror */
+.cm-editor .cm-lineNumbers {
+  display: none !important;
+}
+
+.cm-editor .cm-gutter.cm-lineNumbers {
+  display: none !important;
+}
+
+/* Ocultar scrollbars en todos los modos */
+.cm-editor .cm-scroller {
+  overflow: auto !important;
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE/Edge */
+}
+
+.cm-editor .cm-scroller::-webkit-scrollbar {
+  display: none !important; /* Chrome/Safari */
+}
+
+.cm-editor .cm-content {
+  overflow: visible !important;
+}
+
+.cm-editor {
+  overflow: visible !important;
+}
+
+/* Ocultar scrollbars en todos los contenedores */
+.overflow-y-auto {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE/Edge */
+}
+
+.overflow-y-auto::-webkit-scrollbar {
+  display: none !important; /* Chrome/Safari */
+}
+
+/* Ocultar scrollbars globalmente */
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE/Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none !important; /* Chrome/Safari */
+}

@@ -1,0 +1,101 @@
+ANÁLISIS DEL SISTEMA DE EDITOR MARKDOWN
+
+Proyecto: Editor de notas con Markdown y CodeMirror 6
+Ubicación de archivos clave (rutas relativas):
+- src/components/notes/NoteEditor.tsx
+- src/components/notes/MarkdownToolbar.tsx
+- src/components/notes/WikilinkSuggestions.tsx
+- src/components/notes/DocumentOutline.tsx
+- src/components/notes/NotePreview.tsx
+- src/lib/theme.ts
+- src/lib/notes/noteUtils.ts
+- src/app/editor/page.tsx
+- src/app/notes/[id]/page.tsx
+
+1) Propósito general
+El sistema implementa un editor de notas basado en Markdown con capacidades avanzadas: plegado de encabezados, decoración de texto con colores, sugerencias de wikilinks ([[...]]), vista previa sincronizada, y utilidades para crear tarjetas de estudio (flashcards). Se integra con Supabase para autenticación, almacenamiento de notas, y gestión de enlaces entre notas.
+
+2) Componente principal: NoteEditor.tsx
+- Base técnica: CodeMirror 6 con extensiones y ViewPlugins personalizados.
+- Funcionalidades clave:
+  • Encabezados (H1–H6) con colores y tamaños personalizados extraídos de src/lib/theme.ts.
+  • Plegado personalizado de secciones por encabezado, con widgets tipo flecha para expandir/plegar.
+  • Decoraciones de texto para sintaxis de color en línea: {#color|texto}.
+  • Reglas de teclado para Backspace/Delete dentro de bloques de color para evitar dejar marcas rotas.
+  • Sugestión/auto-completado de wikilinks mientras se escribe [[...]].
+  • Auto-guardado con debounce y extracción del título desde el primer encabezado (# Título).
+  • Integración con barra de herramientas (MarkdownToolbar) y con utilidades de flashcards.
+
+- Plugins y extensiones destacados:
+  • headerDecorationPlugin: Detecta líneas de encabezado, añade clases y padding por nivel, e inserta widgets de flechas para plegar/desplegar. Oculta el gutter nativo de fold para controlar el UI.
+  • hashSymbolPlugin: Vuelve visualmente sutiles los caracteres '#' del encabezado, mejorando legibilidad sin perder semántica.
+  • colorTextPlugin: Interpreta {#color|texto}, oculta los marcadores {#color| y }, y aplica color solo al texto interno. Evita parpadeos al editar cerca de bordes del patrón.
+  • colorKeymap: Si el usuario borra el último carácter dentro de {#...|...}, elimina todo el bloque para no dejar sintaxis inválida.
+  • Tema oscuro personalizado: Ajusta fondo, gutters, selección, y clases cm-hN para estilos coherentes.
+
+- Wikilinks:
+  • Detección cuando el cursor está dentro de [[parcial]].
+  • Muestra un popup de sugerencias (WikilinkSuggestions.tsx), buscando títulos de notas del usuario en Supabase.
+  • Al seleccionar, reemplaza el [[parcial]] por [[Título]] respetando cierres existentes.
+
+- Auto-guardado y título:
+  • Usa debounce (noteUtils.ts) para guardar cambios sin saturar.
+  • Extrae el título desde el primer encabezado para actualizar metadatos.
+
+3) Barra de herramientas: MarkdownToolbar.tsx
+- Propósito: Atajos rápidos de formato y utilidades.
+- Funciones: Negrita, cursiva, código en línea y bloque, listas, cita, enlaces, inserción de colores, símbolos estructurales y emojis.
+- Flashcards: Indicador y botones para ver/estudiar tarjetas, con atajos Alt+Q (pregunta) y Alt+A (respuesta).
+- Integración: Llama a callbacks onInsert/onColorInsert del editor.
+
+4) Sugerencias de Wikilink: WikilinkSuggestions.tsx
+- Popup flotante con control por teclado (Flechas, Enter, Esc).
+- Renderiza la lista provista por el editor y ejecuta onSelect(Título) para insertar en el documento.
+
+5) Esquema del documento: DocumentOutline.tsx
+- Extrae encabezados del contenido Markdown y muestra un panel plegable con jerarquía.
+- Permite navegar a la línea correspondiente al hacer clic en un encabezado.
+- Se posiciona relativo a un botón (buttonRef) de la UI.
+
+6) Vista previa: NotePreview.tsx
+- Renderiza Markdown con react-markdown + remark-gfm + rehype-raw.
+- Procesa wikilinks [[Título]] en enlaces especiales y expone onWikiLinkClick para navegación propia.
+- Convierte {#color|texto} en <span style="color: ...">texto</span>.
+- Implementa secciones colapsables por jerarquía de encabezados.
+- Sincroniza colores y tamaños de encabezados con theme.ts (headerTextClasses y headerSizes).
+
+7) Tema y utilidades compartidas
+- src/lib/theme.ts: Define headerColors, headerSizes y headerTextClasses para mantener consistencia entre editor y vista previa.
+- src/lib/notes/noteUtils.ts: Contiene debounce, generateSlug y extractTitleFromMarkdown.
+
+8) Páginas que integran el editor
+- src/app/editor/page.tsx: Vista principal con explorador de archivos, editor y vista previa. Maneja autenticación con Supabase, carga/creación/movido de notas y modos de visualización (editar, vista previa, split). Encapsula guardado y actualización de enlaces de notas.
+- src/app/notes/[id]/page.tsx: Editor de una sola nota con toggle de vista previa y backlinks. Actualiza tablas de notas y note_links en Supabase al guardar.
+
+9) Decisiones de diseño
+- Plegado basado en efectos/servicios de CodeMirror con widgets propios para control fino del UI.
+- Se desactiva estilado nativo de encabezados para evitar conflictos con decoraciones personalizadas.
+- Sincronía estricta de colores/tamaños entre editor y preview (theme.ts compartido).
+- Wikilinks diferenciados mediante prefijos/hrefs especiales para interceptar navegación.
+- Uso de debounce para auto-guardado y búsqueda de sugerencias, mejorando rendimiento.
+- Modos de enfoque y pantalla dividida controlados por props/estado.
+
+10) Seguridad y entorno
+- Renderizado en cliente ("use client").
+- Se verifica estado de autenticación antes de cargar/editar.
+- Enlaces externos en preview se abren en nueva pestaña con atributos seguros.
+
+11) Mejoras recomendadas
+- Estabilidad y rendimiento: Adoptar patrones de inicialización/auto-guardado de NoteEditor_FIXED.tsx en NoteEditor.tsx. Reducir logs en producción. Evaluar throttle/debounce de decoraciones en documentos muy grandes.
+- UX de wikilinks: Posicionar el popup con coordsAtPos (CodeMirror) para anclarlo al cursor con precisión.
+- Plegado: Alinear más con foldService nativo de CodeMirror para rangos robustos y anidados.
+- Etiquetas de color: Validar y estandarizar nombres/formatos permitidos; añadir un selector de color en la toolbar.
+- Theming: Seguir consolidando constantes compartidas para evitar divergencias entre editor y preview.
+
+12) Próximos pasos sugeridos
+- Refinar lógica/UX de plegado en encabezados anidados.
+- Mejorar posicionamiento y accesibilidad del popup de wikilinks.
+- Ampliar funciones de tarjetas de estudio (creación, conteo, estudio).
+- Añadir más botones/extensiones Markdown si es necesario.
+- Fortalecer manejo de errores y estados de carga.
+- Optimizar rendimiento en notas extensas.

@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 interface MarkdownToolbarProps {
   onInsert: (prefix: string, suffix?: string, wrapSelection?: boolean) => void;
   onColorInsert?: (color: string) => void;
+  onRemoveColor?: () => void;
   viewMode: "edit" | "preview";
   flashcardCount?: number;
   pendingQuestion?: string;
@@ -15,6 +16,7 @@ interface MarkdownToolbarProps {
 export default function MarkdownToolbar({ 
   onInsert, 
   onColorInsert,
+  onRemoveColor,
   viewMode,
   flashcardCount = 0,
   pendingQuestion = "",
@@ -171,6 +173,13 @@ export default function MarkdownToolbar({
             className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors"
             style={{backgroundColor: '#ffffff'}}
           ></button>
+          <button 
+            title="Quitar color"
+            onClick={onRemoveColor}
+            className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors flex items-center justify-center text-gray-400 hover:text-white"
+          >
+            🚫
+          </button>
         </>
       )}
       

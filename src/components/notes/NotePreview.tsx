@@ -273,7 +273,7 @@ export default function NotePreview({ content, onWikiLinkClick }: NotePreviewPro
 
   return (
     <div className="p-6 pr-8 max-w-full overflow-hidden">
-      <div className="prose prose-invert max-w-full break-words overflow-wrap-anywhere" style={{ maxWidth: 'calc(100vw - 400px)' }}>
+      <div className="prose prose-invert max-w-full break-words overflow-wrap-anywhere" style={{ maxWidth: '1024px' }}>
         {parsedSections.map((section) => renderSection(section))}
       </div>
     </div>

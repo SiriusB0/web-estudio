@@ -20,12 +20,12 @@
  */
 
 export const headerColors = {
-  h1: '#63B3ED', // blue.300
-  h2: '#4299E1', // blue.400
-  h3: '#9F7AEA', // purple.400
-  h4: '#805AD5', // purple.500
-  h5: '#ED8936', // orange.400
-  h6: '#DD6B20', // orange.500
+  h1: '#ffffff', // Blanco puro - el más notorio
+  h2: '#60a5fa', // Azul claro - resalta sin robar protagonismo
+  h3: '#a78bfa', // Violeta suave - contraste académico
+  h4: '#4ade80', // Verde - muy legible, da "ok / correcto"
+  h5: '#d1d5db', // Gris claro - mantiene jerarquía
+  h6: '#9ca3af', // Gris medio - más discreto, casi subtítulo
 };
 
 /**
@@ -33,19 +33,19 @@ export const headerColors = {
  * Cambiar aquí afecta ambos lados automáticamente.
  */
 export const headerSizes = {
-  h1: '2.25rem', // 36px - text-4xl
-  h2: '1.875rem', // 30px - text-3xl (más pequeño que H1)
-  h3: '1.5rem',   // 24px - text-2xl
-  h4: '1.25rem',  // 20px - text-xl
-  h5: '1.125rem', // 18px - text-lg
-  h6: '1rem',     // 16px - text-base
+  h1: '3rem',     // 48px - el más grande y notorio
+  h2: '2.25rem',  // 36px - decreciendo progresivamente
+  h3: '1.875rem', // 30px
+  h4: '1.5rem',   // 24px
+  h5: '1.25rem',  // 20px
+  h6: '1rem',     // 16px - base
 };
 
 export const headerTextClasses: Record<number, string> = {
-  1: 'text-[#63B3ED]', // H1
-  2: 'text-[#4299E1]', // H2
-  3: 'text-[#9F7AEA]', // H3
-  4: 'text-[#805AD5]', // H4
-  5: 'text-[#ED8936]', // H5
-  6: 'text-[#DD6B20]', // H6
+  1: 'text-[#ffffff]', // H1 - Blanco puro
+  2: 'text-[#60a5fa]', // H2 - Azul claro
+  3: 'text-[#a78bfa]', // H3 - Violeta suave
+  4: 'text-[#4ade80]', // H4 - Verde
+  5: 'text-[#d1d5db]', // H5 - Gris claro
+  6: 'text-[#9ca3af]', // H6 - Gris medio
 };
