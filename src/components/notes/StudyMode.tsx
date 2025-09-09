@@ -183,9 +183,9 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-1 md:p-4">
-        <div className={`rounded-lg w-full max-w-2xl h-[98vh] md:max-h-[90vh] overflow-hidden relative flex flex-col ${
-          isMobile ? 'bg-slate-800' : 'bg-gray-900'
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+        <div className={`rounded-lg w-full max-w-2xl overflow-hidden relative flex flex-col ${
+          isMobile ? 'bg-slate-800 h-[95vh] mx-2' : 'bg-gray-900 max-h-[90vh]'
         }`}>
           {/* Header - Solo en desktop */}
           {!isMobile && (
@@ -263,74 +263,100 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
           ) : (
             <>
               {/* Card Content */}
-              <div className={`flex-1 p-2 md:p-6 flex flex-col overflow-hidden ${
-                isMobile ? 'justify-center items-center' : 'justify-center'
+              <div className={`flex-1 flex flex-col overflow-hidden ${
+                isMobile ? 'p-4 justify-between' : 'p-6 justify-center'
               }`}>
-                <div className="text-center mb-4">
-                  <span className="text-sm text-gray-400">
-                    Tarjeta {currentIndex + 1} de {flashcards.length}
-                  </span>
-                </div>
+                {isMobile && (
+                  <div className="text-center mb-4">
+                    <span className="text-sm text-gray-400">
+                      Tarjeta {currentIndex + 1} de {flashcards.length}
+                    </span>
+                  </div>
+                )}
 
                 {/* Flashcard Container with Flip Animation */}
-                <div className="flex-1 mb-2 md:mb-6 perspective-1000 flex items-center">
+                <div className={`perspective-1000 flex items-center justify-center ${
+                  isMobile ? 'flex-1' : 'mb-6'
+                }`}>
                   <div 
-                    className={`relative w-full min-h-[200px] md:min-h-[200px] transition-transform duration-700 transform-style-preserve-3d cursor-pointer ${
+                    className={`relative w-full transition-transform duration-700 transform-style-preserve-3d cursor-pointer ${
                       showAnswer ? 'rotate-y-180' : ''
+                    } ${
+                      isMobile ? 'h-[300px] max-w-[350px]' : 'min-h-[200px]'
                     }`}
                     onClick={handleCardTap}
                   >
                     {/* Front Side */}
                     <div className="absolute inset-0 backface-hidden">
-                      <h3 className="text-sm md:text-lg font-medium text-white mb-1 md:mb-3">Pregunta:</h3>
-                      <div className={`p-2 md:p-4 rounded-lg h-full flex items-center justify-center ${
-                        isMobile ? 'bg-slate-700' : 'bg-gray-800'
+                      <div className={`rounded-lg h-full flex flex-col ${
+                        isMobile ? 'bg-slate-700 p-4' : 'bg-gray-800 p-4'
                       }`}>
+                        <h3 className={`font-medium text-white mb-3 ${
+                          isMobile ? 'text-base text-center' : 'text-lg'
+                        }`}>Pregunta:</h3>
+                        <div className="flex-1 flex items-center justify-center">
                         {currentCard.front_image_url ? (
                           <div className="text-center">
                             <img
                               src={currentCard.front_image_url}
                               alt={currentCard.front_image_name || "Imagen pregunta"}
-                              className="max-w-full max-h-32 md:max-h-48 object-contain mx-auto bg-gray-700 rounded cursor-pointer"
+                              className={`max-w-full object-contain mx-auto bg-gray-700 rounded cursor-pointer ${
+                                isMobile ? 'max-h-40' : 'max-h-48'
+                              }`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 openImageModal(currentCard.front_image_url!, currentCard.front_image_name || "Imagen pregunta");
                               }}
                             />
                             {currentCard.front && (
-                              <p className="text-white mt-3">{currentCard.front}</p>
+                              <p className={`text-white mt-3 ${
+                                isMobile ? 'text-sm text-center' : ''
+                              }`}>{currentCard.front}</p>
                             )}
                           </div>
                         ) : (
-                          renderContent(currentCard.front)
+                          <div className={isMobile ? 'text-center text-sm' : ''}>
+                            {renderContent(currentCard.front)}
+                          </div>
                         )}
+                        </div>
                       </div>
                     </div>
 
                     {/* Back Side */}
                     <div className="absolute inset-0 backface-hidden rotate-y-180">
-                      <h3 className="text-sm md:text-lg font-medium text-white mb-1 md:mb-3">Respuesta:</h3>
-                      <div className={`p-2 md:p-4 rounded-lg border-l-4 h-full flex items-center justify-center ${
-                        isMobile ? 'bg-slate-700 border-slate-400' : 'bg-gray-800 border-blue-500'
+                      <div className={`rounded-lg border-l-4 h-full flex flex-col ${
+                        isMobile ? 'bg-slate-700 border-slate-400 p-4' : 'bg-gray-800 border-blue-500 p-4'
                       }`}>
+                        <h3 className={`font-medium text-white mb-3 ${
+                          isMobile ? 'text-base text-center' : 'text-lg'
+                        }`}>Respuesta:</h3>
+                        <div className="flex-1 flex items-center justify-center">
                         {currentCard.back_image_url ? (
                           <div className="text-center">
                             <img
                               src={currentCard.back_image_url}
                               alt={currentCard.back_image_name || "Imagen respuesta"}
-                              className="max-w-full max-h-32 md:max-h-48 object-contain mx-auto bg-gray-700 rounded cursor-pointer"
+                              className={`max-w-full object-contain mx-auto bg-gray-700 rounded cursor-pointer ${
+                                isMobile ? 'max-h-40' : 'max-h-48'
+                              }`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 openImageModal(currentCard.back_image_url!, currentCard.back_image_name || "Imagen respuesta");
                               }}
                             />
                             {currentCard.back && (
-                              <p className="text-white mt-3">{currentCard.back}</p>
+                              <p className={`text-white mt-3 ${
+                                isMobile ? 'text-sm text-center' : ''
+                              }`}>{currentCard.back}</p>
                             )}
                           </div>
                         ) : (
-                          renderContent(currentCard.back)
+                          <div className={isMobile ? 'text-center text-sm' : ''}>
+                            {renderContent(currentCard.back)}
+                          </div>
                         )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -339,11 +365,15 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
 
                 {/* Action Buttons */}
                 <div className={`flex-shrink-0 ${
-                  isMobile ? 'mt-8 mb-8' : 'mt-2'
+                  isMobile ? 'mt-6 mb-4' : 'mt-2'
                 }`}>
                   {showAnswer && (
-                    <div className="h-20 flex items-center justify-center">
-                      <div className="flex justify-center gap-4 transition-opacity duration-300 delay-500 opacity-100">
+                    <div className={`flex items-center justify-center ${
+                      isMobile ? 'h-16' : 'h-20'
+                    }`}>
+                      <div className={`flex justify-center transition-opacity duration-300 delay-500 opacity-100 ${
+                        isMobile ? 'gap-6 px-8' : 'gap-4'
+                      }`}>
                         <button
                           onClick={() => handleAnswer(false)}
                           className={`w-12 h-12 rounded-full transition-all hover:scale-105 flex items-center justify-center ${
