@@ -77,8 +77,9 @@ export default function MobileStudyInterface({ user, initialNote }: MobileStudyI
   };
 
   const handleFolderSelect = async (folderId: string) => {
+    // Primero limpiar nota actual para evitar parpadeo
+    setCurrentNote(null);
     setCurrentFolder(folderId);
-    setShowFolders(false);
     
     // Cargar notas de la carpeta seleccionada
     const { data: notesData } = await supabase
@@ -90,8 +91,8 @@ export default function MobileStudyInterface({ user, initialNote }: MobileStudyI
       .order("title", { ascending: true });
 
     setNotes(notesData || []);
-    // No abrir nota automáticamente; mostrar lista
-    setCurrentNote(null);
+    // Solo después de cargar las notas, cambiar vista
+    setShowFolders(false);
   };
 
   const handleNoteSelect = async (note: Note) => {

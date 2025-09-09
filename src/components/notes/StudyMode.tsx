@@ -24,8 +24,6 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [modalImageUrl, setModalImageUrl] = useState("");
   const [modalImageName, setModalImageName] = useState("");
-  const [touchStartX, setTouchStartX] = useState(0);
-  const [touchStartY, setTouchStartY] = useState(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -42,16 +40,17 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
   const isLastCard = currentIndex === flashcards.length - 1;
   const progress = ((correctCount + incorrectCount) / flashcards.length) * 100;
 
-  const handleAnswer = (correct: boolean) => {
-    if (correct) {
+  const handleAnswer = (correct: boolean | null) => {
+    if (correct === true) {
       setCorrectCount(prev => prev + 1);
-    } else {
+    } else if (correct === false) {
       setIncorrectCount(prev => prev + 1);
     }
+    // Si correct === null, es "Duda" y no cuenta como correcto ni incorrecto
 
     setStudiedCards(prev => new Set([...prev, currentIndex]));
     
-    // Move to next card after a short delay
+    // Move to next card after a short delay (igual que desktop)
     setTimeout(() => {
       if (isLastCard) {
         // Study session complete
@@ -94,33 +93,9 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
   // Detectar si es dispositivo móvil
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
-  // Manejar gestos de deslizamiento
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStartX(e.touches[0].clientX);
-    setTouchStartY(e.touches[0].clientY);
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStartX || !touchStartY) return;
-
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
-    const deltaX = touchStartX - touchEndX;
-    const deltaY = touchStartY - touchEndY;
-
-    // Solo procesar si el deslizamiento horizontal es mayor que el vertical
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
-      if (deltaX > 0 && !isLastCard) {
-        // Deslizar izquierda = siguiente
-        handleNext();
-      } else if (deltaX < 0 && currentIndex > 0) {
-        // Deslizar derecha = anterior
-        handlePrevious();
-      }
-    }
-
-    setTouchStartX(0);
-    setTouchStartY(0);
+  // Manejar tap para alternar pregunta/respuesta
+  const handleCardTap = () => {
+    setShowAnswer(!showAnswer);
   };
 
   // Componentes de renderizado para Markdown con soporte Mermaid
@@ -208,14 +183,14 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
-        <div 
-          className="bg-gray-900 rounded-lg w-full max-w-2xl max-h-[95vh] md:max-h-[90vh] overflow-hidden relative"
-          onTouchStart={isMobile ? handleTouchStart : undefined}
-          onTouchEnd={isMobile ? handleTouchEnd : undefined}
-        >
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-1 md:p-4">
+        <div className={`rounded-lg w-full max-w-2xl h-[98vh] md:max-h-[90vh] overflow-hidden relative flex flex-col ${
+          isMobile ? 'bg-slate-800' : 'bg-gray-900'
+        }`}>
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          <div className={`flex items-center justify-between p-2 md:p-4 border-b flex-shrink-0 ${
+            isMobile ? 'border-slate-600' : 'border-gray-700'
+          }`}>
             <div>
               <h2 className="text-lg font-semibold text-white">Modo Estudio</h2>
               <p className="text-sm text-gray-400">{title}</p>
@@ -229,7 +204,9 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
           </div>
 
           {/* Progress Bar */}
-          <div className="p-4 border-b border-gray-700">
+          <div className={`p-2 md:p-4 border-b flex-shrink-0 ${
+            isMobile ? 'border-slate-600' : 'border-gray-700'
+          }`}>
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-300">
                 Progreso: {correctCount + incorrectCount} / {flashcards.length}
@@ -276,7 +253,7 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
           ) : (
             <>
               {/* Card Content */}
-              <div className="p-3 md:p-6 min-h-[250px] md:min-h-[300px] flex flex-col justify-center">
+              <div className="flex-1 p-2 md:p-6 flex flex-col justify-center overflow-hidden">
                 <div className="text-center mb-4">
                   <span className="text-sm text-gray-400">
                     Tarjeta {currentIndex + 1} de {flashcards.length}
@@ -284,17 +261,19 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
                 </div>
 
                 {/* Flashcard Container with Flip Animation */}
-                <div className="mb-4 md:mb-6 perspective-1000">
+                <div className="flex-1 mb-2 md:mb-6 perspective-1000 flex items-center">
                   <div 
-                    className={`relative w-full min-h-[180px] md:min-h-[200px] transition-transform duration-700 transform-style-preserve-3d cursor-pointer ${
+                    className={`relative w-full min-h-[200px] md:min-h-[200px] transition-transform duration-700 transform-style-preserve-3d cursor-pointer ${
                       showAnswer ? 'rotate-y-180' : ''
                     }`}
-                    onClick={() => !showAnswer && setShowAnswer(true)}
+                    onClick={handleCardTap}
                   >
                     {/* Front Side */}
                     <div className="absolute inset-0 backface-hidden">
-                      <h3 className="text-base md:text-lg font-medium text-white mb-2 md:mb-3">Pregunta:</h3>
-                      <div className="bg-gray-800 p-3 md:p-4 rounded-lg h-full flex items-center justify-center">
+                      <h3 className="text-sm md:text-lg font-medium text-white mb-1 md:mb-3">Pregunta:</h3>
+                      <div className={`p-2 md:p-4 rounded-lg h-full flex items-center justify-center ${
+                        isMobile ? 'bg-slate-700' : 'bg-gray-800'
+                      }`}>
                         {currentCard.front_image_url ? (
                           <div className="text-center">
                             <img
@@ -318,8 +297,10 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
 
                     {/* Back Side */}
                     <div className="absolute inset-0 backface-hidden rotate-y-180">
-                      <h3 className="text-base md:text-lg font-medium text-white mb-2 md:mb-3">Respuesta:</h3>
-                      <div className="bg-gray-800 p-3 md:p-4 rounded-lg border-l-4 border-blue-500 h-full flex items-center justify-center">
+                      <h3 className="text-sm md:text-lg font-medium text-white mb-1 md:mb-3">Respuesta:</h3>
+                      <div className={`p-2 md:p-4 rounded-lg border-l-4 h-full flex items-center justify-center ${
+                        isMobile ? 'bg-slate-700 border-slate-400' : 'bg-gray-800 border-blue-500'
+                      }`}>
                         {currentCard.back_image_url ? (
                           <div className="text-center">
                             <img
@@ -345,41 +326,58 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
 
 
                 {/* Action Buttons */}
-                <div className="flex justify-center gap-3">
-                  {!showAnswer ? (
-                    <div className="text-center">
-                      <p className="text-xs md:text-sm text-gray-400 mb-2 md:mb-3">
-                        {isMobile ? 'Toca la tarjeta o desliza ← →' : 'Toca la tarjeta para voltearla'}
-                      </p>
-                      <button
-                        onClick={() => setShowAnswer(true)}
-                        className="px-4 md:px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors text-sm md:text-base"
-                      >
-                        Mostrar Respuesta
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2 md:gap-3">
-                      <button
-                        onClick={() => handleAnswer(false)}
-                        className="px-3 md:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors text-sm md:text-base"
-                      >
-                        ❌ Incorrecta
-                      </button>
-                      <button
-                        onClick={() => handleAnswer(true)}
-                        className="px-3 md:px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition-colors text-sm md:text-base"
-                      >
-                        ✅ Correcta
-                      </button>
+                <div className="flex-shrink-0 mt-2">
+                  {showAnswer && (
+                    <div className="h-20 flex items-center justify-center">
+                      <div className="flex justify-center gap-4 transition-opacity duration-300 delay-500 opacity-100">
+                        <button
+                          onClick={() => handleAnswer(false)}
+                          className={`w-12 h-12 rounded-full transition-all hover:scale-105 flex items-center justify-center ${
+                            isMobile ? 'bg-red-700 hover:bg-red-800' : 'bg-red-600 hover:bg-red-700'
+                          }`}
+                          title="No acerté"
+                        >
+                          <svg width="24" height="24" viewBox="0 0 40 40" className="text-white">
+                            <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="2"></circle>
+                            <line x1="14" y1="14" x2="26" y2="26" stroke="currentColor" strokeWidth="3" strokeLinecap="round"></line>
+                            <line x1="26" y1="14" x2="14" y2="26" stroke="currentColor" strokeWidth="3" strokeLinecap="round"></line>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleAnswer(null)}
+                          className={`w-12 h-12 rounded-full transition-all hover:scale-105 flex items-center justify-center ${
+                            isMobile ? 'bg-amber-700 hover:bg-amber-800' : 'bg-yellow-600 hover:bg-yellow-700'
+                          }`}
+                          title="Duda"
+                        >
+                          <svg width="24" height="24" viewBox="0 0 40 40" className="text-white">
+                            <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="2"></circle>
+                            <circle cx="13.5" cy="20" r="2.2" fill="currentColor"></circle>
+                            <circle cx="20" cy="20" r="2.2" fill="currentColor"></circle>
+                            <circle cx="26.5" cy="20" r="2.2" fill="currentColor"></circle>
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleAnswer(true)}
+                          className={`w-12 h-12 rounded-full transition-all hover:scale-105 flex items-center justify-center ${
+                            isMobile ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-green-600 hover:bg-green-700'
+                          }`}
+                          title="Acerté"
+                        >
+                          <svg width="24" height="24" viewBox="0 0 40 40" className="text-white">
+                            <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="2"></circle>
+                            <polyline points="12,20 18,26 28,16" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"></polyline>
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Navigation - Solo indicadores en móvil, botones en desktop */}
-              <div className="flex items-center justify-center p-3 md:p-4 border-t border-gray-700">
-                {!isMobile && (
+              {/* Navigation - Solo en desktop */}
+              {!isMobile && (
+                <div className="flex items-center justify-center p-4 border-t border-gray-700 flex-shrink-0">
                   <button
                     onClick={handlePrevious}
                     disabled={currentIndex === 0}
@@ -391,24 +389,22 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
                   >
                     ← Anterior
                   </button>
-                )}
 
-                <div className={`flex gap-1 md:gap-2 ${!isMobile ? 'mx-4' : ''}`}>
-                  {flashcards.map((_, index) => (
-                    <div
-                      key={index}
-                      className={`w-2 h-2 rounded-full ${
-                        index === currentIndex
-                          ? 'bg-blue-500'
-                          : studiedCards.has(index)
-                          ? 'bg-green-500'
-                          : 'bg-gray-600'
-                      }`}
-                    />
-                  ))}
-                </div>
+                  <div className="flex gap-2 mx-4">
+                    {flashcards.map((_, index) => (
+                      <div
+                        key={index}
+                        className={`w-2 h-2 rounded-full ${
+                          index === currentIndex
+                            ? 'bg-blue-500'
+                            : studiedCards.has(index)
+                            ? 'bg-green-500'
+                            : 'bg-gray-600'
+                        }`}
+                      />
+                    ))}
+                  </div>
 
-                {!isMobile && (
                   <button
                     onClick={handleNext}
                     disabled={isLastCard}
@@ -420,8 +416,8 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
                   >
                     Siguiente →
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </>
           )}
         </div>
