@@ -8,7 +8,174 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+/* Sincronizar fuente entre editor y vista previa */
+.cm-editor, .cm-content, .prose, .prose * {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+}
+
+/* Eliminar resaltado de línea activa en líneas vacías */
+.cm-activeLine:empty {
+  background-color: transparent !important;
+}
+
+.cm-line:empty {
+  background-color: transparent !important;
+}
+
+/* Asegurar que las líneas vacías no tengan resaltado */
+.cm-editor .cm-line:empty,
+.cm-editor .cm-activeLine:empty {
+  background-color: transparent !important;
+}
+
+/* Eliminar resaltado en líneas que solo contienen espacios en blanco */
+.cm-line:not(:has(*:not(:empty))):has(:only-child:empty) {
+  background-color: transparent !important;
+}
+
+/* Específicamente para líneas vacías después de elementos de lista */
+.cm-line:empty + .cm-line,
+.cm-activeLine:empty + .cm-activeLine {
+  background-color: transparent !important;
+}
+
+/* Limitar scroll solo hasta el contenido */
+.cm-scroller {
+  overflow-anchor: none !important;
+}
+
+.cm-editor {
+  min-height: 300px !important;
+}
+
+.cm-content {
+  min-height: 300px !important;
+  padding-bottom: 20px !important;
+}
+
+/* Vista dividida - CSS Grid para 50/50 exacto */
+.split-view {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+.split-view > div {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: auto !important;
+}
+
+.split-view .cm-scroller,
+.split-view .cm-editor,
+.split-view .cm-content {
+  height: 100% !important;
+  min-height: unset !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Ajuste de texto en vista dividida - Editor */
+.split-view .cm-content {
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: pre-wrap !important;
+}
+
+.split-view .cm-line {
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: pre-wrap !important;
+}
+
+/* Headers en vista dividida */
+.split-view .cm-h1,
+.split-view .cm-h2,
+.split-view .cm-h3,
+.split-view .cm-h4,
+.split-view .cm-h5,
+.split-view .cm-h6 {
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: pre-wrap !important;
+}
+
+/* Ajuste de texto en vista dividida - Preview - Evitar corte de palabras */
+.split-view h1,
+.split-view h2,
+.split-view h3,
+.split-view h4,
+.split-view h5,
+.split-view h6,
+.split-view p,
+.split-view div,
+.split-view span,
+.split-view li {
+  word-break: keep-all !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+  white-space: normal !important;
+  max-width: 100% !important;
+  hyphens: none !important;
+  line-break: auto !important;
+}
+
+.split-view * {
+  word-break: keep-all !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+  white-space: normal !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  line-break: auto !important;
+}
+
+/* Específico para elementos de lista en vista dividida */
+.split-view ol,
+.split-view ul {
+  word-break: keep-all !important;
+  overflow-wrap: break-word !important;
+}
+
+.split-view ol li,
+.split-view ul li {
+  word-break: keep-all !important;
+  overflow-wrap: break-word !important;
+  white-space: normal !important;
+}
+
+/* Vista individual - altura dinámica */
+.single-view .cm-scroller {
+  height: fit-content !important;
+  min-height: 300px !important;
+}
+
+.single-view .cm-editor {
+  height: fit-content !important;
+  min-height: 300px !important;
+}
+
+.single-view .cm-content {
+  height: fit-content !important;
+  min-height: 300px !important;
+}
+
+/* Vista previa - limitar scroll */
+.prose {
+  overflow-anchor: none !important;
+  min-height: auto !important;
+  height: fit-content !important;
+}
+
+.prose-container {
+  overflow-anchor: none !important;
+  min-height: auto !important;
+  height: fit-content !important;
 }
 
 /* Estilos para efecto flip de flashcards */

@@ -8,7 +8,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { HighlightStyle, syntaxHighlighting, syntaxTree, foldGutter, foldEffect, unfoldEffect, codeFolding, foldService, foldedRanges, foldInside } from "@codemirror/language";
 import { lineNumbers } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
-import { headerColors, headerSizes } from "../../lib/theme";
+import { headerColors, headerSizes, headerWeights } from "../../lib/theme";
 import { debounce } from "@/lib/notes/noteUtils";
 import WikilinkSuggestions from "./WikilinkSuggestions";
 import NotePreview from "./NotePreview";
@@ -530,9 +530,10 @@ export default function NoteEditor({
       padding: '10px 20px 10px 40px',
       caretColor: '#528bff',
       backgroundColor: '#1e1e1e !important',
-      maxWidth: 'calc(100vw - 360px)',
       wordWrap: 'break-word',
-      overflowWrap: 'break-word'
+      overflowWrap: 'break-word',
+      minHeight: 'calc(100vh - 200px)',
+      height: 'auto'
     },
     '.cm-activeLine': {
       backgroundColor: 'transparent !important'
@@ -540,15 +541,24 @@ export default function NoteEditor({
     '.cm-activeLineGutter': {
       backgroundColor: 'transparent !important'
     },
+    // Asegurar que líneas vacías no tengan resaltado
+    '.cm-line:empty': {
+      backgroundColor: 'transparent !important'
+    },
+    '.cm-activeLine:empty': {
+      backgroundColor: 'transparent !important'
+    },
     '.cm-editor': {
       backgroundColor: '#1e1e1e !important'
     },
     '.cm-scroller': {
       backgroundColor: '#1e1e1e !important',
-      scrollPaddingBottom: '100px',
+      scrollPaddingBottom: '20px',
       scrollBehavior: 'auto',
       overflowY: 'auto',
-      overscrollBehavior: 'contain'
+      overscrollBehavior: 'contain',
+      height: 'auto',
+      maxHeight: 'calc(100vh - 120px)'
     },
     '.cm-focused': {
       backgroundColor: '#1e1e1e !important'
@@ -595,13 +605,13 @@ export default function NoteEditor({
     '.cm-selectionBackground': {
       backgroundColor: '#3e4451'
     },
-    // Tamaños y colores de headers usando headerSizes y headerColors de theme.ts
-    '.cm-line.cm-h1': { fontSize: headerSizes.h1, fontWeight: '700', lineHeight: '1.25', color: headerColors.h1 },
-    '.cm-line.cm-h2': { fontSize: headerSizes.h2, fontWeight: '700', lineHeight: '1.25', color: headerColors.h2 },
-    '.cm-line.cm-h3': { fontSize: headerSizes.h3, fontWeight: '700', lineHeight: '1.25', color: headerColors.h3 },
-    '.cm-line.cm-h4': { fontSize: headerSizes.h4, fontWeight: '600', lineHeight: '1.375', color: headerColors.h4 },
-    '.cm-line.cm-h5': { fontSize: headerSizes.h5, fontWeight: '600', lineHeight: '1.375', color: headerColors.h5 },
-    '.cm-line.cm-h6': { fontSize: headerSizes.h6, fontWeight: '600', lineHeight: '1.375', color: headerColors.h6 }
+    // Tamaños, colores y pesos de headers usando theme.ts
+    '.cm-line.cm-h1': { fontSize: headerSizes.h1, fontWeight: headerWeights.h1, lineHeight: '1.25', color: headerColors.h1 },
+    '.cm-line.cm-h2': { fontSize: headerSizes.h2, fontWeight: headerWeights.h2, lineHeight: '1.25', color: headerColors.h2 },
+    '.cm-line.cm-h3': { fontSize: headerSizes.h3, fontWeight: headerWeights.h3, lineHeight: '1.25', color: headerColors.h3 },
+    '.cm-line.cm-h4': { fontSize: headerSizes.h4, fontWeight: headerWeights.h4, lineHeight: '1.375', color: headerColors.h4 },
+    '.cm-line.cm-h5': { fontSize: headerSizes.h5, fontWeight: headerWeights.h5, lineHeight: '1.375', color: headerColors.h5 },
+    '.cm-line.cm-h6': { fontSize: headerSizes.h6, fontWeight: headerWeights.h6, lineHeight: '1.375', color: headerColors.h6 }
   }, { dark: true });
 
   // Estilo de sintaxis personalizado SIN headers (para evitar conflicto con headerDecorationPlugin)
@@ -638,6 +648,7 @@ export default function NoteEditor({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestionPosition, setSuggestionPosition] = useState({ top: 0, left: 0 });
   const [currentWikilink, setCurrentWikilink] = useState("");
+  const [editorHeight, setEditorHeight] = useState('auto');
   
   // Estados para flashcards automáticas
   const [pendingQuestion, setPendingQuestion] = useState<string>("");
@@ -709,6 +720,34 @@ export default function NoteEditor({
       debouncedSave(content, noteId);
     }
   }, [content, debouncedSave, initialContent, noteId, currentNoteRef]);
+
+  // Ajustar altura del editor dinámicamente basado en el contenido
+  useEffect(() => {
+    const updateEditorHeight = () => {
+      const view = editorRef.current?.view;
+      if (!view) return;
+
+      const doc = view.state.doc;
+      const lineCount = doc.lines;
+      const hasContent = content.trim().length > 0;
+      
+      if (!hasContent) {
+        // Nota vacía: altura mínima para mostrar el área de escritura
+        setEditorHeight('calc(100vh - 200px)');
+      } else {
+        // Con contenido: altura basada en líneas + margen pequeño
+        const estimatedHeight = Math.max(lineCount * 24 + 100, 300); // 24px por línea + padding
+        const maxHeight = window.innerHeight - 200;
+        setEditorHeight(`${Math.min(estimatedHeight, maxHeight)}px`);
+      }
+    };
+
+    updateEditorHeight();
+    
+    // Actualizar cuando cambie el contenido
+    const timeoutId = setTimeout(updateEditorHeight, 100);
+    return () => clearTimeout(timeoutId);
+  }, [content]);
 
   // Debounced search for wikilink suggestions
   const debouncedSearch = useCallback(
@@ -951,12 +990,14 @@ export default function NoteEditor({
     
     setContent(newContent);
     
-    // Actualizar cursor después de que React actualice
+    // Actualizar cursor después de que React actualice SIN scroll automático
     setTimeout(() => {
       if (view) {
+        const scrollTop = view.scrollDOM.scrollTop; // Guardar posición actual
         view.dispatch({
           selection: { anchor: newCursorPos, head: newCursorPos }
         });
+        view.scrollDOM.scrollTop = scrollTop; // Restaurar posición
         view.focus();
       }
     }, 10);
@@ -1447,7 +1488,12 @@ export default function NoteEditor({
             className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
             title="Emojis por categorías"
           >
-            😀
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+              <line x1="9" y1="9" x2="9.01" y2="9"></line>
+              <line x1="15" y1="9" x2="15.01" y2="9"></line>
+            </svg>
           </button>
           
           {showEmojiDropdown && (
@@ -1700,27 +1746,39 @@ export default function NoteEditor({
       {/* Editor or Preview */}
       <div className="flex-1 overflow-hidden relative flex bg-[#1e1e1e]" ref={editorContainerRef}>
         {isSplitView ? (
-          <div className="flex w-full h-full">
-            <div className="w-1/2 h-full overflow-y-auto relative" style={{ backgroundColor: '#1e1e1e' }}>
-              <div className="max-w-5xl mx-auto px-6 h-full">
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: '1fr 1fr', 
+            width: '100%', 
+            height: '100%',
+            gap: '0px'
+          }} className="split-view">
+            <div style={{ 
+              backgroundColor: '#1e1e1e', 
+              overflow: 'auto',
+              minWidth: 0,
+              maxWidth: '100%'
+            }}>
+              <div className="px-6 h-full">
                 <CodeMirror
                   ref={editorRef}
                   value={content}
                   onChange={handleChange}
-                  className="h-full w-full text-base"
-                  style={{ backgroundColor: '#1e1e1e' }}
+                  className="h-full text-base"
+                  style={{ backgroundColor: '#1e1e1e', height: '100%', width: '100%' }}
                   extensions={[
-                    lineNumbers(),
                     markdown(),
-                    EditorView.lineWrapping,
-                    scrollPastEnd(),
-                    colorKeymap,
                     syntaxHighlighting(customSyntaxHighlighting),
+                    customDarkTheme,
+                    lineNumbers(),
                     headerDecorationPlugin,
                     hashSymbolPlugin,
                     colorTextPlugin,
+                    colorKeymap,
+                    codeFolding({
+                      placeholderText: "..."
+                    })
                   ]}
-                  theme={customDarkTheme}
                   basicSetup={{
                     lineNumbers: false,
                     foldGutter: false,
@@ -1744,21 +1802,26 @@ export default function NoteEditor({
                 )}
               </div>
             </div>
-            <div className="w-1/2 h-full overflow-y-auto border-l border-gray-700" ref={previewContainerRef}>
-              <div className="max-w-5xl mx-auto px-6 py-4">
-                <NotePreview content={content} onWikiLinkClick={handleWikiLinkClick} />
+            <div style={{ 
+              overflow: 'auto', 
+              borderLeft: '1px solid #374151',
+              minWidth: 0,
+              maxWidth: '100%'
+            }} ref={previewContainerRef}>
+              <div className="px-6 py-4">
+                <NotePreview content={content} onWikiLinkClick={handleWikiLinkClick} studyMode={false} />
               </div>
             </div>
           </div>
         ) : viewMode === "edit" ? (
-          <div className="w-full h-full" style={{ backgroundColor: '#1e1e1e', overflow: 'hidden' }}>
+          <div className="w-full h-full single-view" style={{ backgroundColor: '#1e1e1e', overflow: 'hidden' }}>
             <div className="max-w-5xl mx-auto px-6 h-full" style={{ overflow: 'auto' }}>
               <CodeMirror
                 ref={editorRef}
                 value={content}
                 onChange={handleChange}
                 className="h-full w-full text-base"
-                style={{ backgroundColor: '#1e1e1e', height: '100%' }}
+                style={{ backgroundColor: '#1e1e1e', height: editorHeight }}
                 extensions={[
                   lineNumbers(),
                   markdown(),
@@ -1798,7 +1861,7 @@ export default function NoteEditor({
         ) : (
           <div className="w-full h-full" style={{ overflow: 'auto' }}>
             <div className="max-w-5xl mx-auto px-6 py-4">
-              <NotePreview content={content} onWikiLinkClick={handleWikiLinkClick} />
+              <NotePreview content={content} onWikiLinkClick={handleWikiLinkClick} studyMode={false} />
             </div>
           </div>
         )}

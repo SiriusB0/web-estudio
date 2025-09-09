@@ -7,6 +7,7 @@ import FileExplorer from "@/components/notes/FileExplorer";
 import NoteEditor from "@/components/notes/NoteEditor";
 import NotePreview from "@/components/notes/NotePreview";
 import DocumentOutline from "@/components/notes/DocumentOutline";
+import { AnnotationsList } from "@/components/notes/AnnotationsList";
 import { extractWikiLinks, updateNoteLinks } from "@/lib/notes/wikilinks";
 
 type Note = {
@@ -28,6 +29,7 @@ export default function EditorPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showOutline, setShowOutline] = useState(false);
+  const [showAnnotations, setShowAnnotations] = useState(false);
   const outlineButtonRef = useRef<HTMLButtonElement>(null);
   const [isSplitView, setIsSplitView] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -503,6 +505,19 @@ Escribe aquí tu contenido...`;
                         </svg>
                       </button>
                       <button
+                        onClick={() => setShowAnnotations(!showAnnotations)}
+                        className="px-3 py-2 text-sm bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors"
+                        title="Ver anotaciones"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                          <polyline points="14,2 14,8 20,8"/>
+                          <line x1="16" y1="13" x2="8" y2="13"/>
+                          <line x1="16" y1="17" x2="8" y2="17"/>
+                          <polyline points="10,9 9,9 8,9"/>
+                        </svg>
+                      </button>
+                      <button
                         onClick={() => setViewMode("edit")}
                         className="px-3 py-2 text-sm bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors"
                         title="Editar"
@@ -518,6 +533,7 @@ Escribe aquí tu contenido...`;
                   <div className="flex-1 overflow-y-auto bg-gray-950">
                     <NotePreview 
                       content={currentNote.content_md} 
+                      studyMode={false}
                       onWikiLinkClick={async (noteTitle: string) => {
                         console.log("Editor page wikilink clicked:", noteTitle);
                         if (!user?.id) return;
@@ -614,6 +630,40 @@ Escribe aquí tu contenido...`;
           }}
         />
       )}
+
+      {/* Panel de Anotaciones */}
+      <AnnotationsList
+        isVisible={showAnnotations}
+        annotations={(() => {
+          const stored = localStorage.getItem('simple-annotations');
+          try {
+            return stored ? JSON.parse(stored) : [];
+          } catch {
+            return [];
+          }
+        })()}
+        onAnnotationClick={(annotation) => {
+          // Buscar el párrafo que contiene la anotación y hacer clic en el icono
+          const paragraphs = document.querySelectorAll('p');
+          for (const paragraph of paragraphs) {
+            const noteIcon = paragraph.querySelector('button[title="Ver/editar anotación"]');
+            if (noteIcon && noteIcon.getAttribute('data-line-id') === annotation.lineId) {
+              // Hacer scroll al párrafo
+              paragraph.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+              });
+              // Hacer clic en el icono después de un breve delay
+              setTimeout(() => {
+                (noteIcon as HTMLElement).click();
+              }, 300);
+              break;
+            }
+          }
+          setShowAnnotations(false);
+        }}
+        onClose={() => setShowAnnotations(false)}
+      />
 
     </div>
   );

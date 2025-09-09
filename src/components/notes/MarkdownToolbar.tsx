@@ -178,7 +178,10 @@ export default function MarkdownToolbar({
             onClick={onRemoveColor}
             className="w-6 h-6 rounded border border-gray-600 hover:border-gray-400 transition-colors flex items-center justify-center text-gray-400 hover:text-white"
           >
-            🚫
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18"/>
+              <path d="M6 6l12 12"/>
+            </svg>
           </button>
         </>
       )}
@@ -215,7 +218,12 @@ export default function MarkdownToolbar({
           title="Iconos"
           className="px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors"
         >
-          🔣
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+          </svg>
         </button>
         {showIcons && (
           <div className="absolute left-0 mt-1 z-20 rounded-md border border-gray-700 bg-gray-800 shadow-xl p-3 w-80 max-h-[50vh] overflow-y-auto overflow-x-hidden">

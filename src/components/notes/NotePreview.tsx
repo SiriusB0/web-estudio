@@ -3,8 +3,10 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import { useMemo, useState } from "react";
-import { headerTextClasses, headerSizes } from "../../lib/theme";
+import { useMemo, useState, useEffect } from "react";
+import { headerTextClasses, headerSizes, headerSizesStudy, headerWeights } from "../../lib/theme";
+import { Highlight, themes } from "prism-react-renderer";
+import { SimpleAnnotation } from "./SimpleAnnotation";
 
 interface Section {
   id: string;
@@ -17,10 +19,45 @@ interface Section {
 interface NotePreviewProps {
   content: string;
   onWikiLinkClick?: (linkText: string) => void;
+  studyMode?: boolean; // Nuevo prop para alternar entre rem y em
 }
 
-export default function NotePreview({ content, onWikiLinkClick }: NotePreviewProps) {
+export default function NotePreview({ content, onWikiLinkClick, studyMode = false }: NotePreviewProps) {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [showAnnotation, setShowAnnotation] = useState(false);
+  const [annotationPosition, setAnnotationPosition] = useState({ x: 0, y: 0 });
+  const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
+  const [hoveredLineId, setHoveredLineId] = useState<string>('');
+  const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [currentLineId, setCurrentLineId] = useState<string>('');
+  const [annotations, setAnnotations] = useState<Array<{id: string, text: string, lineId: string}>>([]);
+
+  // Cargar anotaciones al iniciar
+  useEffect(() => {
+    const stored = localStorage.getItem('simple-annotations');
+    if (stored) {
+      try {
+        setAnnotations(JSON.parse(stored));
+      } catch (e) {
+        console.error('Error loading annotations:', e);
+      }
+    }
+  }, []);
+
+  // Atajos de teclado
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey && event.key === 'n') {
+        event.preventDefault();
+        // Crear anotación en la posición del cursor
+        setAnnotationPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+        setShowAnnotation(true);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
   
   console.log("=== NotePreview RENDER ===");
   console.log("Props received:", { content: content?.substring(0, 50) + "...", onWikiLinkClick });
@@ -164,12 +201,100 @@ export default function NotePreview({ content, onWikiLinkClick }: NotePreviewPro
         </a>
       );
     },
-    code: ({ className, children }: any) => (
-      <code className="bg-gray-700 text-gray-200 px-1 py-0.5 rounded text-sm font-mono">
-        {children}
-      </code>
-    ),
-    p: ({ children }: any) => <p className="text-gray-300 mb-4">{children}</p>,
+    code: ({ node, inline, className, children, ...props }: any) => {
+      const match = /language-(\w+)/.exec(className || "");
+      if (!inline && match) {
+        const language = match[1] as any;
+        const code = String(children).replace(/\n$/, "");
+        return <CodeBlock code={code} language={language} />;
+      }
+      return (
+        <code className="bg-gray-700 text-gray-200 px-1 py-0.5 rounded text-sm font-mono">
+          {children}
+        </code>
+      );
+    },
+    p: ({ children }: any) => {
+      // Crear ID estable basado en el contenido del párrafo
+      const textContent = typeof children === 'string' ? children : 
+        Array.isArray(children) ? children.join('') : String(children);
+      const lineId = `line-${textContent.slice(0, 50).replace(/\s+/g, '-').toLowerCase()}`;
+      const hasAnnotation = annotations.some(ann => ann.lineId === lineId);
+      const showButton = hoveredLineId === lineId;
+
+      const handleMouseEnter = () => {
+        // Limpiar timeout anterior si existe
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout);
+        }
+        
+        // Crear nuevo timeout de 2 segundos
+        const timeout = setTimeout(() => {
+          setHoveredLineId(lineId);
+        }, 2000);
+        
+        setHoverTimeout(timeout);
+      };
+
+      const handleMouseLeave = () => {
+        // Limpiar timeout y ocultar botón
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout);
+          setHoverTimeout(null);
+        }
+        setHoveredLineId('');
+      };
+
+      return (
+        <div 
+          className="relative inline-block w-full"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <p className="text-gray-300 leading-relaxed mb-4">
+            {children}
+            
+            {/* Icono de nota existente */}
+            {hasAnnotation && (
+              <button
+                className="ml-2 w-4 h-4 text-gray-400 hover:text-gray-200 opacity-50 hover:opacity-80 transition-all inline-flex items-center justify-center align-top"
+                data-line-id={lineId}
+                onClick={(e) => {
+                  const annotation = annotations.find(ann => ann.lineId === lineId);
+                  if (annotation) {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setAnnotationPosition({ x: rect.left - 320, y: rect.top });
+                    setEditingAnnotationId(annotation.id);
+                    setShowAnnotation(true);
+                    setCurrentLineId(lineId);
+                  }
+                }}
+                title="Ver/editar anotación"
+              >
+                📄
+              </button>
+            )}
+            
+            {/* Botón + para nueva anotación */}
+            {!hasAnnotation && showButton && (
+              <button
+                className="ml-2 w-4 h-4 text-gray-500 hover:text-gray-300 opacity-40 hover:opacity-70 transition-all inline-flex items-center justify-center text-xs align-top"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setAnnotationPosition({ x: rect.left - 320, y: rect.top });
+                  setEditingAnnotationId(null);
+                  setShowAnnotation(true);
+                  setCurrentLineId(lineId);
+                }}
+                title="Agregar anotación"
+              >
+                +
+              </button>
+            )}
+          </p>
+        </div>
+      );
+    },
     li: ({ children }: any) => <li className="text-gray-300">{children}</li>,
     blockquote: ({ children }: any) => (
       <blockquote className="border-l-4 border-gray-600 bg-gray-800 pl-4 py-2 my-4 text-gray-300">
@@ -200,27 +325,31 @@ export default function NotePreview({ content, onWikiLinkClick }: NotePreviewPro
     }
     
     // === Vista Previa: Configuración de tamaños y colores de encabezados ===
-    // Colores:
-    // - Los colores provienen de `headerTextClasses` definido en `src/lib/theme.ts`.
-    // - Abajo se obtiene con: `const colorClass = headerTextClasses[section.level]`.
-    // - Para cambiar COLORES en la vista previa, edita `headerTextClasses` (por nivel 1..6) en theme.ts.
-    // Tamaños:
-    // - Los tamaños base de cada nivel se definen en `baseHeaderClasses` usando clases Tailwind.
-    // - Para cambiar TAMAÑOS en la vista previa, modifica las clases aquí por nivel.
-    // - Ejemplo: aumentar H2 -> 2: "text-4xl font-bold mb-4"
-    // NOTA: Ahora usando headerSizes de theme.ts para sincronizar con editor
+    // Colores: definidos en headerTextClasses (theme.ts)
+    // Tamaños: headerSizes (rem) para vista normal, headerSizesStudy (em) para modo estudio
+    // Pesos: headerWeights para cada nivel
+    
     const baseHeaderClasses: Record<number, string> = {
-      1: "font-bold mb-4",
-      2: "font-bold mb-4", 
-      3: "font-bold mb-3",
-      4: "font-bold mb-2",
-      5: "font-bold mb-2",
-      6: "font-bold mb-2"
+      1: "mb-4",
+      2: "mb-4", 
+      3: "mb-3",
+      4: "mb-2",
+      5: "mb-2",
+      6: "mb-2"
     };
     
     const colorClass = headerTextClasses[section.level] || 'text-gray-300';
-    const baseClass = baseHeaderClasses[section.level] || "font-bold mb-2";
-    const sizeStyle = { fontSize: headerSizes[`h${section.level}` as keyof typeof headerSizes] || '1rem' };
+    const baseClass = baseHeaderClasses[section.level] || "mb-2";
+    
+    // Usar tamaños em para modo estudio, rem para vista normal
+    const currentSizes = studyMode ? headerSizesStudy : headerSizes;
+    const fontSize = currentSizes[`h${section.level}` as keyof typeof currentSizes] || '1rem';
+    const fontWeight = headerWeights[`h${section.level}` as keyof typeof headerWeights] || '500';
+    
+    const sizeStyle = { 
+      fontSize: fontSize,
+      fontWeight: fontWeight
+    };
     const headerClass = `${colorClass} ${baseClass}`;
     
     const headerProps = {
@@ -271,11 +400,130 @@ export default function NotePreview({ content, onWikiLinkClick }: NotePreviewPro
     );
   };
 
+  // Bloque de código con Prism (tema Night Owl) y botón copiar
+  function CodeBlock({ code, language }: { code: string; language: string }) {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = async () => {
+      try {
+        await navigator.clipboard.writeText(code);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1200);
+      } catch (e) {
+        console.error("Copy failed", e);
+      }
+    };
+
+    return (
+      <div className="relative group my-4 overflow-hidden rounded-lg border border-gray-700/60 bg-[#011627]">
+        <button
+          onClick={handleCopy}
+          className="absolute right-2 top-2 z-10 rounded-md bg-gray-800/80 px-2 py-1 text-xs text-gray-200 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-700"
+          aria-label="Copiar código"
+          type="button"
+        >
+          {copied ? "Copiado" : "Copiar"}
+        </button>
+        <Highlight
+          code={code}
+          language={language as any}
+          theme={themes.nightOwl}
+        >
+          {({ className, style, tokens, getLineProps, getTokenProps }) => (
+            <pre className={`${className} m-0 max-h-[600px] overflow-auto p-4 text-sm`} style={style}>
+              {tokens.map((line, i) => (
+                <div key={i} {...getLineProps({ line })}>
+                  {line.map((token, key) => (
+                    <span key={key} {...getTokenProps({ token })} />
+                  ))}
+                </div>
+              ))}
+            </pre>
+          )}
+        </Highlight>
+      </div>
+    );
+  }
+
+  const handleSaveAnnotation = (note: string) => {
+    let updatedAnnotations;
+    
+    if (editingAnnotationId) {
+      // Editar anotación existente
+      updatedAnnotations = annotations.map(ann => 
+        ann.id === editingAnnotationId 
+          ? { ...ann, text: note }
+          : ann
+      );
+    } else {
+      // Crear nueva anotación
+      const newAnnotation = {
+        id: Date.now().toString(),
+        text: note,
+        lineId: currentLineId
+      };
+      updatedAnnotations = [...annotations, newAnnotation];
+    }
+    
+    setAnnotations(updatedAnnotations);
+    setShowAnnotation(false);
+    setEditingAnnotationId(null);
+    setCurrentLineId('');
+    
+    // Guardar en localStorage
+    localStorage.setItem('simple-annotations', JSON.stringify(updatedAnnotations));
+  };
+
+  const handleDeleteAnnotation = () => {
+    if (editingAnnotationId) {
+      const updatedAnnotations = annotations.filter(ann => ann.id !== editingAnnotationId);
+      setAnnotations(updatedAnnotations);
+      localStorage.setItem('simple-annotations', JSON.stringify(updatedAnnotations));
+    }
+    setShowAnnotation(false);
+    setEditingAnnotationId(null);
+    setCurrentLineId('');
+  };
+
+  const handleCloseAnnotation = () => {
+    setShowAnnotation(false);
+    setEditingAnnotationId(null);
+    setCurrentLineId('');
+  };
+
   return (
-    <div className="p-6 pr-8 max-w-full overflow-hidden">
-      <div className="prose prose-invert max-w-full break-words overflow-wrap-anywhere" style={{ maxWidth: '1024px' }}>
+    <div className="p-6 max-w-full overflow-hidden">
+      {/* Contador de anotaciones en el header */}
+      {annotations.length > 0 && (
+        <div className="mb-4 text-sm text-gray-400">
+          📝 {annotations.length} anotación{annotations.length > 1 ? 'es' : ''}
+        </div>
+      )}
+      
+      <div className="prose prose-invert max-w-full break-words overflow-wrap-anywhere">
         {parsedSections.map((section) => renderSection(section))}
       </div>
+      
+      <SimpleAnnotation
+        onSave={handleSaveAnnotation}
+        onClose={handleCloseAnnotation}
+        onDelete={editingAnnotationId ? handleDeleteAnnotation : undefined}
+        position={annotationPosition}
+        isVisible={showAnnotation}
+        existingNote={editingAnnotationId ? annotations.find(a => a.id === editingAnnotationId)?.text : undefined}
+        lineContent={currentLineId ? 
+          // Extraer contenido de la línea basado en el lineId
+          (() => {
+            const lineMatch = currentLineId.match(/^line-(.+)$/);
+            if (lineMatch) {
+              return lineMatch[1].replace(/-/g, ' ');
+            }
+            return 'Anotación';
+          })()
+          : undefined
+        }
+      />
+      
     </div>
   );
 }
