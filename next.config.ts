@@ -9,6 +9,17 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // Configuración para webpack para manejar módulos como mermaid
+  webpack: (config: any) => {
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      path: false,
+    };
+    return config;
+  },
+  // Transpilación de módulos externos
+  transpilePackages: ['mermaid'],
 };
 
 export default nextConfig;

@@ -7,6 +7,7 @@ import { useMemo, useState, useEffect } from "react";
 import { headerTextClasses, headerSizes, headerSizesStudy, headerWeights } from "../../lib/theme";
 import { Highlight, themes } from "prism-react-renderer";
 import { SimpleAnnotation } from "./SimpleAnnotation";
+import MermaidRenderer from "./MermaidRenderer";
 
 interface Section {
   id: string;
@@ -59,18 +60,10 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
   
-  console.log("=== NotePreview RENDER ===");
-  console.log("Props received:", { content: content?.substring(0, 50) + "...", onWikiLinkClick });
-  console.log("Stack trace:", new Error().stack);
   
   const handleWikilinkClick = (noteTitle: string) => {
-    console.log("handleWikilinkClick called with:", noteTitle);
-    console.log("onWikiLinkClick function:", onWikiLinkClick);
     if (onWikiLinkClick) {
-      console.log("Calling onWikiLinkClick...");
       onWikiLinkClick(noteTitle);
-    } else {
-      console.log("ERROR: onWikiLinkClick is not defined!");
     }
   };
 
@@ -206,6 +199,12 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
       if (!inline && match) {
         const language = match[1] as any;
         const code = String(children).replace(/\n$/, "");
+        
+        // Renderizar diagramas Mermaid
+        if (language === 'mermaid') {
+          return <MermaidRenderer chart={code} />;
+        }
+        
         return <CodeBlock code={code} language={language} />;
       }
       return (

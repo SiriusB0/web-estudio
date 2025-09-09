@@ -3,6 +3,10 @@
 import { useState, useEffect } from "react";
 import { Flashcard } from "@/lib/notes/flashcards";
 import ImageModal from "./ImageModal";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import MermaidRenderer from "./MermaidRenderer";
 
 interface StudyModeProps {
   flashcards: Flashcard[];
@@ -83,6 +87,85 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
     setModalImageUrl(imageUrl);
     setModalImageName(imageName);
     setImageModalOpen(true);
+  };
+
+  // Componentes de renderizado para Markdown con soporte Mermaid
+  const renderMarkdownComponents = {
+    code: ({ node, inline, className, children, ...props }: any) => {
+      const match = /language-(\w+)/.exec(className || "");
+      if (!inline && match) {
+        const language = match[1] as any;
+        const code = String(children).replace(/\n$/, "");
+        
+        // Renderizar diagramas Mermaid
+        if (language === 'mermaid') {
+          return <MermaidRenderer chart={code} />;
+        }
+        
+        // Código normal con resaltado
+        return (
+          <pre className="bg-gray-700 p-3 rounded text-sm overflow-x-auto">
+            <code className="text-gray-200">{code}</code>
+          </pre>
+        );
+      }
+      return (
+        <code className="bg-gray-700 text-gray-200 px-1 py-0.5 rounded text-sm font-mono">
+          {children}
+        </code>
+      );
+    },
+    p: ({ children }: any) => (
+      <p className="text-white mb-2">{children}</p>
+    ),
+    h1: ({ children }: any) => (
+      <h1 className="text-xl font-bold text-white mb-3">{children}</h1>
+    ),
+    h2: ({ children }: any) => (
+      <h2 className="text-lg font-semibold text-white mb-2">{children}</h2>
+    ),
+    h3: ({ children }: any) => (
+      <h3 className="text-base font-medium text-white mb-2">{children}</h3>
+    ),
+    ul: ({ children }: any) => (
+      <ul className="list-disc list-inside text-white mb-2">{children}</ul>
+    ),
+    ol: ({ children }: any) => (
+      <ol className="list-decimal list-inside text-white mb-2">{children}</ol>
+    ),
+    li: ({ children }: any) => (
+      <li className="text-white">{children}</li>
+    ),
+    blockquote: ({ children }: any) => (
+      <blockquote className="border-l-4 border-blue-500 pl-4 py-2 bg-gray-800 text-white mb-2">
+        {children}
+      </blockquote>
+    ),
+    strong: ({ children }: any) => (
+      <strong className="font-bold text-white">{children}</strong>
+    ),
+    em: ({ children }: any) => (
+      <em className="italic text-white">{children}</em>
+    )
+  };
+
+  // Función para renderizar contenido con soporte Markdown y Mermaid
+  const renderContent = (content: string) => {
+    // Si el contenido contiene markdown (detectar por caracteres especiales)
+    if (content.includes('```') || content.includes('#') || content.includes('*') || content.includes('_')) {
+      return (
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeRaw]}
+          components={renderMarkdownComponents}
+        >
+          {content}
+        </ReactMarkdown>
+      );
+    }
+    
+    // Contenido simple sin markdown
+    return <p className="text-white">{content}</p>;
   };
 
   const isStudyComplete = correctCount + incorrectCount === flashcards.length;
@@ -179,7 +262,7 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
                         )}
                       </div>
                     ) : (
-                      <p className="text-white">{currentCard.front}</p>
+                      renderContent(currentCard.front)
                     )}
                   </div>
                 </div>
@@ -202,7 +285,7 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
                           )}
                         </div>
                       ) : (
-                        <p className="text-white">{currentCard.back}</p>
+                        renderContent(currentCard.back)
                       )}
                     </div>
                   </div>
