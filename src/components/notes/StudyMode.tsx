@@ -187,33 +187,43 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
         <div className={`rounded-lg w-full max-w-2xl h-[98vh] md:max-h-[90vh] overflow-hidden relative flex flex-col ${
           isMobile ? 'bg-slate-800' : 'bg-gray-900'
         }`}>
-          {/* Header */}
-          <div className={`flex items-center justify-between p-2 md:p-4 border-b flex-shrink-0 ${
-            isMobile ? 'border-slate-600' : 'border-gray-700'
-          }`}>
-            <div>
-              <h2 className="text-lg font-semibold text-white">Modo Estudio</h2>
-              <p className="text-sm text-gray-400">{title}</p>
+          {/* Header - Solo en desktop */}
+          {!isMobile && (
+            <div className="flex items-center justify-between p-4 border-b border-gray-700 flex-shrink-0">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Modo Estudio</h2>
+                <p className="text-sm text-gray-400">{title}</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
             </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              ✕
-            </button>
-          </div>
+          )}
 
           {/* Progress Bar */}
           <div className={`p-2 md:p-4 border-b flex-shrink-0 ${
             isMobile ? 'border-slate-600' : 'border-gray-700'
           }`}>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-300">
-                Progreso: {correctCount + incorrectCount} / {flashcards.length}
-              </span>
-              <span className="text-sm text-gray-300">
-                ✅ {correctCount} | ❌ {incorrectCount}
-              </span>
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-300">
+                  Progreso: {correctCount + incorrectCount} / {flashcards.length}
+                </span>
+                <span className="text-sm text-gray-300">
+                  ✅ {correctCount} | ❌ {incorrectCount}
+                </span>
+              </div>
+              {isMobile && (
+                <button
+                  onClick={onClose}
+                  className="text-gray-400 hover:text-white transition-colors text-lg"
+                >
+                  ✕
+                </button>
+              )}
             </div>
             <div className="w-full bg-gray-700 rounded-full h-2">
               <div 
@@ -253,7 +263,9 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
           ) : (
             <>
               {/* Card Content */}
-              <div className="flex-1 p-2 md:p-6 flex flex-col justify-center overflow-hidden">
+              <div className={`flex-1 p-2 md:p-6 flex flex-col overflow-hidden ${
+                isMobile ? 'justify-center items-center' : 'justify-center'
+              }`}>
                 <div className="text-center mb-4">
                   <span className="text-sm text-gray-400">
                     Tarjeta {currentIndex + 1} de {flashcards.length}
@@ -326,7 +338,9 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
 
 
                 {/* Action Buttons */}
-                <div className="flex-shrink-0 mt-2">
+                <div className={`flex-shrink-0 ${
+                  isMobile ? 'mt-8 mb-8' : 'mt-2'
+                }`}>
                   {showAnswer && (
                     <div className="h-20 flex items-center justify-center">
                       <div className="flex justify-center gap-4 transition-opacity duration-300 delay-500 opacity-100">
