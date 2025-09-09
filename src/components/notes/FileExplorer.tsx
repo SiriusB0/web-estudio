@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from "@/lib/supabaseClient";
 import { 
@@ -14,7 +15,8 @@ import {
   TrashIcon,
   PencilIcon,
   AcademicCapIcon,
-  HomeIcon
+  HomeIcon,
+  ArrowLeftOnRectangleIcon
 } from "@heroicons/react/24/outline";
 import FolderStudySelector from "./FolderStudySelector";
 
@@ -73,6 +75,8 @@ export default function FileExplorer({ onNoteSelect, onNewNote, onNewFolder, sel
   const [showFolderStudy, setShowFolderStudy] = useState<{folderId: string | null, folderName: string} | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [hasAutoExpanded, setHasAutoExpanded] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     loadData();
@@ -850,6 +854,11 @@ Escribe aquí tu contenido...`;
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.replace('/login');
+  };
+
   const renderTreeItem = (item: TreeItem, level: number = 0) => {
     const isExpanded = expandedFolders.has(item.id);
     const isSelected = item.type === "note" && selectedNotes.has(item.id);
@@ -1073,67 +1082,79 @@ Escribe aquí tu contenido...`;
             </svg>
           </button>
         </div>
-        {!isCollapsed && <div className="flex gap-1.5 mt-2">
-          <Link href="/dashboard" className="p-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded transition-colors border border-gray-700/50 hover:border-gray-600/50" title="Ir al Dashboard">
+        {!isCollapsed && (
+          <div className="flex gap-1.5 mt-2">
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              className="p-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded transition-colors border border-gray-700/50 hover:border-gray-600/50"
+              title="Cerrar Sesión"
+            >
+              <ArrowLeftOnRectangleIcon className="w-4 h-4 text-white" />
+            </button>
+
+            <Link href="/dashboard" className="p-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded transition-colors border border-gray-700/50 hover:border-gray-600/50" title="Ir al Dashboard">
               <HomeIcon className="w-4 h-4 text-white" />
-          </Link>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              createFolder();
-            }}
-            className="p-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded transition-colors border border-gray-700/50 hover:border-gray-600/50"
-            title={selectedFolderId ? "Nueva Subcarpeta" : "Nueva Carpeta"}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" className="text-white">
-              <path fill="currentColor" d="m12.5,14.5h3.5v1h-3.5v3.5h-1v-3.5h-3.5v-1h3.5v-3.5h1v3.5Zm11.5-9v17.5H0V3.5C0,2.122,1.121,1,2.5,1h5.618l4,2h9.382c1.379,0,2.5,1.122,2.5,2.5ZM1,3.5v3.5h22v-1.5c0-.827-.673-1.5-1.5-1.5h-9.618l-4-2H2.5c-.827,0-1.5.673-1.5,1.5Zm22,18.5v-14H1v14h22Z"/>
-            </svg>
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onNewNote();
-            }}
-            className="p-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded transition-colors border border-gray-700/50 hover:border-gray-600/50"
-            title="Nueva Nota"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" className="text-white">
-              <path fill="currentColor" d="M14.707,0H4.5c-1.379,0-2.5,1.122-2.5,2.5v21.5h20V7.293L14.707,0Zm.293,1.707l5.293,5.293h-5.293V1.707ZM3,23V2.5c0-.827.673-1.5,1.5-1.5h9.5v7h7v15H3Zm9.5-8.5h3.5v1h-3.5v3.5h-1v-3.5h-3.5v-1h3.5v-3.5h1v3.5Z"/>
-            </svg>
-          </button>
-        </div>}
-        
-        {/* Selection Controls */}
-        {!isCollapsed && selectedNotes.size > 0 && (
-          <div className="bg-gray-900 rounded p-2 text-sm">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-300">{selectedNotes.size} seleccionadas</span>
-              <button
-                onClick={clearSelection}
-                className="text-gray-400 hover:text-gray-200 text-xs"
-              >
-                Limpiar
-              </button>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={selectAllNotes}
-                className="px-2 py-1 text-xs bg-gray-800 hover:bg-gray-700 text-gray-200 rounded"
-              >
-                Todas
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteSelectedNotes();
-                }}
-                className="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded cursor-pointer"
-                style={{ pointerEvents: 'auto' }}
-              >
-                Eliminar
-              </button>
-            </div>
+            </Link>
+            
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                createFolder();
+              }}
+              className="p-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded transition-colors border border-gray-700/50 hover:border-gray-600/50"
+              title={selectedFolderId ? "Nueva Subcarpeta" : "Nueva Carpeta"}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" className="text-white">
+                <path fill="currentColor" d="m12.5,14.5h3.5v1h-3.5v3.5h-1v-3.5h-3.5v-1h3.5v-3.5h1v3.5Zm11.5-9v17.5H0V3.5C0,2.122,1.121,1,2.5,1h5.618l4,2h9.382c1.379,0,2.5,1.122,2.5,2.5ZM1,3.5v3.5h22v-1.5c0-.827-.673-1.5-1.5-1.5h-9.618l-4-2H2.5c-.827,0-1.5.673-1.5,1.5Zm22,18.5v-14H1v14h22Z"/>
+              </svg>
+            </button>
+
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                onNewNote();
+              }}
+              className="p-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded transition-colors border border-gray-700/50 hover:border-gray-600/50"
+              title="Nueva Nota"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" className="text-white">
+                <path fill="currentColor" d="M14.707,0H4.5c-1.379,0-2.5,1.122-2.5,2.5v21.5h20V7.293L14.707,0Zm.293,1.707l5.293,5.293h-5.293V1.707ZM3,23V2.5c0-.827.673-1.5,1.5-1.5h9.5v7h7v15H3Zm9.5-8.5h3.5v1h-3.5v3.5h-1v-3.5h-3.5v-1h3.5v-3.5h1v3.5Z"/>
+              </svg>
+            </button>
+
+            {/* Selection Controls */}
+            {selectedNotes.size > 0 && (
+              <div className="bg-gray-900 rounded p-2 text-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-gray-300">{selectedNotes.size} seleccionadas</span>
+                  <button
+                    onClick={clearSelection}
+                    className="text-gray-400 hover:text-gray-200 text-xs"
+                  >
+                    Limpiar
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={selectAllNotes}
+                    className="px-2 py-1 text-xs bg-gray-800 hover:bg-gray-700 text-gray-200 rounded"
+                  >
+                    Todas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteSelectedNotes();
+                    }}
+                    className="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded cursor-pointer"
+                    style={{ pointerEvents: 'auto' }}
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1273,6 +1294,30 @@ Escribe aquí tu contenido...`;
           onClose={() => setShowFolderStudy(null)}
           onStartStudy={handleStartFolderStudy}
         />
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center backdrop-blur-sm">
+          <div className="bg-gray-800 rounded-lg p-6 shadow-xl border border-gray-700 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-medium text-white mb-4">Cerrar Sesión</h3>
+            <p className="text-gray-300 mb-6">¿Estás seguro de que quieres cerrar sesión?</p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded transition-colors text-white font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 rounded transition-colors text-white font-medium"
+              >
+                Cerrar Sesión
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

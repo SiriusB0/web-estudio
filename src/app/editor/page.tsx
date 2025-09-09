@@ -31,6 +31,7 @@ export default function EditorPage() {
   const [showOutline, setShowOutline] = useState(false);
   const [showAnnotations, setShowAnnotations] = useState(false);
   const outlineButtonRef = useRef<HTMLButtonElement>(null);
+  const annotationsButtonRef = useRef<HTMLButtonElement>(null);
   const [isSplitView, setIsSplitView] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
@@ -420,45 +421,23 @@ Escribe aquí tu contenido...`;
   return (
     <div className="h-screen flex" style={{backgroundColor: '#0a0a0a'}}>
       {/* Sidebar */}
-      {!isFocusMode && !isSplitView && viewMode !== "preview" && <FileExplorer
-        key={explorerKey}
-        onNoteSelect={handleNoteSelect}
-        onNewNote={handleNewNote}
-        onNewFolder={handleNewFolder}
-        selectedNoteId={currentNote?.id}
-        onMoveNote={handleMoveNote}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-      />}
+      {!isFocusMode && !isSplitView && viewMode !== "preview" && !isSidebarCollapsed && (
+        <FileExplorer
+          key={explorerKey}
+          onNoteSelect={handleNoteSelect}
+          onNewNote={handleNewNote}
+          onNewFolder={handleNewFolder}
+          selectedNoteId={currentNote?.id}
+          onMoveNote={handleMoveNote}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        />
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {currentNote ? (
           <>
-            {/* Header */}
-            <div className="border-b border-gray-900 bg-gray-950 px-3 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {(isSplitView || viewMode === "preview") && (
-                  <button
-                    onClick={() => {
-                      setIsSplitView(false);
-                      setViewMode("edit");
-                    }}
-                    className="p-2 text-sm bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors"
-                    title="Volver al Explorador"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                      <polyline points="9,22 9,12 15,12 15,22"/>
-                    </svg>
-                  </button>
-                )}
-                <h1 className="text-xl font-semibold text-gray-100">
-                  {currentNote.title}
-                </h1>
-              </div>
-              <div className="flex items-center gap-2"/>
-            </div>
 
             {/* Editor/Preview */}
             <div className="flex-1 overflow-hidden">
@@ -483,33 +462,34 @@ Escribe aquí tu contenido...`;
                   onNoteCreated={() => setExplorerKey(prev => prev + 1)}
                   onToggleFocusMode={() => setIsFocusMode(!isFocusMode)}
                   onToggleSplitView={() => setIsSplitView(!isSplitView)}
+                  isSidebarCollapsed={isSidebarCollapsed}
+                  onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                 />
               ) : (
                 <div className="h-full flex flex-col">
                   {/* Preview Status Bar */}
-                  <div className="flex items-center justify-between px-4 py-2 border-b border-gray-900 bg-gray-950 text-xs text-gray-300">
-                    <div className="flex items-center gap-4">
-                      <span>Vista previa</span>
-                    </div>
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center px-2 py-1.5 border-b border-gray-800/50 text-xs text-gray-300" style={{backgroundColor: '#0a0a0a'}}>
+                    <span className="text-gray-400 flex-shrink-0">Vista previa</span>
+                    <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                       <button
                         ref={outlineButtonRef}
                         onClick={() => setShowOutline(!showOutline)}
-                        className="px-3 py-2 text-sm bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors"
+                        className="w-7 h-7 flex items-center justify-center text-xs bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors flex-shrink-0"
                         title="Ver esquema"
                       >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                           <line x1="9" y1="9" x2="15" y2="9"/>
                           <line x1="9" y1="15" x2="15" y2="15"/>
                         </svg>
                       </button>
                       <button
+                        ref={annotationsButtonRef}
                         onClick={() => setShowAnnotations(!showAnnotations)}
-                        className="px-3 py-2 text-sm bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors"
+                        className="w-7 h-7 flex items-center justify-center text-xs bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors flex-shrink-0"
                         title="Ver anotaciones"
                       >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                           <polyline points="14,2 14,8 20,8"/>
                           <line x1="16" y1="13" x2="8" y2="13"/>
@@ -519,10 +499,10 @@ Escribe aquí tu contenido...`;
                       </button>
                       <button
                         onClick={() => setViewMode("edit")}
-                        className="px-3 py-2 text-sm bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors"
+                        className="w-7 h-7 flex items-center justify-center text-xs bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors flex-shrink-0"
                         title="Editar"
                       >
-                        <svg width="18" height="18" viewBox="0 0 24 24" className="text-white">
+                        <svg width="14" height="14" viewBox="0 0 24 24" className="text-white">
                           <path fill="currentColor" d="M22.994,5.195c-.011-.067-.277-1.662-1.378-2.774-1.111-1.09-2.712-1.355-2.779-1.366-.119-.021-.239,.005-.342,.068-.122,.075-3.047,1.913-9.049,7.886C3.12,15.305,1.482,17.791,1.415,17.894c-.045,.07-.073,.15-.079,.233l-.334,4.285c-.011,.146,.042,.289,.145,.393,.094,.094,.221,.146,.354,.146,.013,0,.026,0,.039-.001l4.306-.333c.083-.006,.162-.033,.232-.078,.103-.066,2.6-1.697,8.924-7.991,6.002-5.974,7.848-8.886,7.923-9.007,.064-.103,.089-.225,.07-.344ZM14.295,13.838c-5.54,5.514-8.14,7.427-8.661,7.792l-3.59,.278,.278-3.569c.368-.521,2.292-3.109,7.828-8.619,1.773-1.764,3.278-3.166,4.518-4.264,.484,.112,1.721,.468,2.595,1.326,.868,.851,1.23,2.046,1.346,2.526-1.108,1.24-2.525,2.75-4.314,4.531Zm5.095-5.419c-.236-.681-.669-1.608-1.427-2.352-.757-.742-1.703-1.166-2.396-1.397,1.807-1.549,2.902-2.326,3.292-2.59,.396,.092,1.362,.375,2.05,1.049,.675,.682,.963,1.645,1.058,2.042-.265,.388-1.039,1.469-2.577,3.247Z"/>
                         </svg>
                       </button>
@@ -634,6 +614,7 @@ Escribe aquí tu contenido...`;
       {/* Panel de Anotaciones */}
       <AnnotationsList
         isVisible={showAnnotations}
+        buttonRef={annotationsButtonRef}
         annotations={(() => {
           const stored = localStorage.getItem('simple-annotations');
           try {

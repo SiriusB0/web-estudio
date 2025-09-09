@@ -24,6 +24,7 @@ export default function StudyPage() {
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [modalImageUrl, setModalImageUrl] = useState("");
   const [modalImageName, setModalImageName] = useState("");
+  const [isHeaderVisible, setIsHeaderVisible] = useState(false);
 
   useEffect(() => {
     loadFlashcards();
@@ -168,35 +169,42 @@ export default function StudyPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
-      {/* Header minimalista */}
-      <div className="bg-gray-800 p-4 border-b border-gray-700">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
-          <button
-            onClick={goBack}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            ← Volver
-          </button>
-          
-          <div className="text-center">
-            <h1 className="text-white font-medium">{noteTitle}</h1>
-            <p className="text-sm text-gray-400">
-              {currentIndex + 1} de {flashcards.length}
-            </p>
+      {/* Contenedor del Header para el hover */}
+      <div 
+        className="fixed top-0 left-0 right-0 h-24 z-10"
+        onMouseEnter={() => setIsHeaderVisible(true)}
+        onMouseLeave={() => setIsHeaderVisible(false)}
+      >
+        {/* Header minimalista */}
+        <div className={`absolute top-0 left-0 right-0 bg-gray-800/90 backdrop-blur-sm p-4 border-b border-gray-700 transition-opacity duration-300 ${isHeaderVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+          <div className="flex items-center justify-between max-w-4xl mx-auto">
+            <button
+              onClick={goBack}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              ← Volver
+            </button>
+            
+            <div className="text-center">
+              <h1 className="text-white font-medium">{noteTitle}</h1>
+              <p className="text-sm text-gray-400">
+                {currentIndex + 1} de {flashcards.length}
+              </p>
+            </div>
+            
+            <div className="text-sm text-gray-400">
+              {studyStats.correct + studyStats.incorrect + studyStats.doubt} respondidas
+            </div>
           </div>
           
-          <div className="text-sm text-gray-400">
-            {studyStats.correct + studyStats.incorrect + studyStats.doubt} respondidas
-          </div>
-        </div>
-        
-        {/* Barra de progreso */}
-        <div className="max-w-4xl mx-auto mt-3">
-          <div className="w-full bg-gray-700 rounded-full h-2">
-            <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
+          {/* Barra de progreso */}
+          <div className="max-w-4xl mx-auto mt-3">
+            <div className="w-full bg-gray-700 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           </div>
         </div>
       </div>

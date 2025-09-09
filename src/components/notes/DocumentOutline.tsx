@@ -27,9 +27,18 @@ export default function DocumentOutline({ content, onNavigate, isOpen, onToggle,
   useEffect(() => {
     if (isOpen && buttonRef?.current) {
       const buttonRect = buttonRef.current.getBoundingClientRect();
+      const panelWidth = 320;
+      const viewportWidth = window.innerWidth;
+      
+      // Calcular posición horizontal para evitar que se salga de la pantalla
+      let leftPosition = buttonRect.left;
+      if (leftPosition + panelWidth > viewportWidth - 16) {
+        leftPosition = buttonRect.right - panelWidth;
+      }
+      
       setPosition({
-        top: buttonRect.bottom + 8,
-        left: buttonRect.right - 320 // Ancho del panel
+        top: buttonRect.bottom + 4,
+        left: Math.max(16, leftPosition) // Mínimo 16px del borde izquierdo
       });
       setIsPositioned(true);
     } else {

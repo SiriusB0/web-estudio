@@ -11,18 +11,51 @@ interface AnnotationsListProps {
   annotations: Annotation[];
   onAnnotationClick: (annotation: Annotation) => void;
   onClose: () => void;
+  buttonRef?: React.RefObject<HTMLButtonElement | null>;
 }
 
 export const AnnotationsList: React.FC<AnnotationsListProps> = ({
   isVisible,
   annotations,
   onAnnotationClick,
-  onClose
+  onClose,
+  buttonRef
 }) => {
-  if (!isVisible) return null;
+  const [position, setPosition] = React.useState({ top: 0, left: 0 });
+  const [isPositioned, setIsPositioned] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isVisible && buttonRef?.current) {
+      const buttonRect = buttonRef.current.getBoundingClientRect();
+      const panelWidth = 320;
+      const viewportWidth = window.innerWidth;
+      
+      // Calcular posición horizontal para evitar que se salga de la pantalla
+      let leftPosition = buttonRect.left;
+      if (leftPosition + panelWidth > viewportWidth - 16) {
+        leftPosition = buttonRect.right - panelWidth;
+      }
+      
+      setPosition({
+        top: buttonRect.bottom + 4,
+        left: Math.max(16, leftPosition)
+      });
+      setIsPositioned(true);
+    } else {
+      setIsPositioned(false);
+    }
+  }, [isVisible, buttonRef]);
+
+  if (!isVisible || !isPositioned) return null;
 
   return (
-    <div className="fixed top-16 right-4 w-80 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-40 max-h-96 overflow-hidden">
+    <div 
+      className="fixed w-80 bg-gray-900/95 border border-gray-700 rounded-lg shadow-2xl backdrop-blur-sm z-50 max-h-96 overflow-hidden"
+      style={{
+        top: position.top,
+        left: position.left,
+      }}
+    >
       <div className="flex items-center justify-between p-3 border-b border-gray-600">
         <h3 className="text-sm font-medium text-gray-200">
           Anotaciones ({annotations.length})
@@ -58,7 +91,7 @@ export const AnnotationsList: React.FC<AnnotationsListProps> = ({
                 <div
                   key={annotation.id}
                   onClick={() => onAnnotationClick(annotation)}
-                  className="p-3 mb-2 bg-gray-700 hover:bg-gray-650 rounded cursor-pointer transition-colors"
+                  className="p-3 mb-2 bg-gray-800/50 hover:bg-gray-700/50 rounded cursor-pointer transition-colors"
                 >
                   <div className="text-xs text-gray-400 mb-1 truncate">
                     {truncatedLine}

@@ -1,0 +1,88 @@
+INSTRUCCIONES: Restaurar el proyecto al estado BASELINE (UI/UX) si algo se rompe
+
+Resumen
+- Punto de restauración creado: tag uiux-baseline-2025-09-08
+- Rama actual principal: main
+- Este documento explica varias formas de volver EXACTAMENTE a ese estado o deshacer cambios posteriores, según tu necesidad.
+
+Requisitos previos
+1) Estar en la carpeta del proyecto
+   cd c:\Users\micro\Downloads\Windsurf\proyecto-estudio
+2) Tener Git funcionando y acceso al remoto (origin) del repo.
+
+Comandos útiles de verificación
+- Ver estado actual: 
+  git status -sb
+- Ver rama actual: 
+  git branch --show-current
+- Ver el último commit: 
+  git log -n 1 --oneline
+- Traer tags/ramas del remoto: 
+  git fetch --all --tags
+
+Opción A: Ver el snapshot sin tocar main (solo inspección)
+- Cambia al tag (modo "detached HEAD"): 
+  git fetch --all --tags
+  git checkout uiux-baseline-2025-09-08
+- Volver a tu línea de trabajo: 
+  git switch main
+
+Opción B: Crear una rama nueva desde el snapshot (para trabajar desde ahí)
+- Crear y moverte a una rama nueva basada en el tag:
+  git fetch --all --tags
+  git switch -c restore-uiux-baseline uiux-baseline-2025-09-08
+- Subir la rama (primera vez):
+  git push -u origin restore-uiux-baseline
+- Volver a main cuando quieras: 
+  git switch main
+
+Opción C: Deshacer los cambios posteriores en main conservando la historia
+(Esto crea commits de "revert" para deshacer lo que vino después del tag; NO reescribe historia.)
+- Asegúrate de estar en main y actualizado: 
+  git switch main
+  git fetch
+- Revertir todo lo posterior al tag hasta main (auto-mensaje): 
+  git revert --no-edit uiux-baseline-2025-09-08..main
+- Subir los reverts: 
+  git push
+
+Opción D: Volver exacto al snapshot reescribiendo la historia (fuerte)
+(Usa esto solo si entiendes el impacto: hace reset duro y requiere push forzado.)
+- Asegúrate de estar en main y con tags traídos: 
+  git switch main
+  git fetch --all --tags
+- Reset duro al tag: 
+  git reset --hard uiux-baseline-2025-09-08
+- Empujar reescritura de historia con seguridad: 
+  git push --force-with-lease
+
+Cómo crear un NUEVO punto de restauración antes de cambios grandes
+- Guardar todo y crear commit snapshot: 
+  git add -A
+  git commit -m "snapshot: baseline UI/UX antes del cambio X"
+- Crear un tag legible (ajusta la fecha): 
+  git tag -a uiux-baseline-YYYY-MM-DD -m "Punto de restauración UI/UX"
+- Subir rama y tags: 
+  git push
+  git push origin --tags
+
+Solución a problemas típicos
+- "fatal: The current branch has no upstream branch": primer push con upstream 
+  git push -u origin main
+- "src refspec main does not match any": tu rama quizá no es main; verifica 
+  git branch --show-current  (usa ese nombre)
+- Configurar identidad de Git si te lo pide: 
+  git config user.name "Tu Nombre"
+  git config user.email "tu@email.com"
+- Warnings CRLF/LF en Windows: son avisos inofensivos por fin de línea. Para reducir ruido: 
+  git config core.autocrlf true
+
+Notas
+- La Opción C (revert) es la más "segura" porque no reescribe historia compartida.
+- La Opción D (reset --hard + push --force-with-lease) es contundente; úsala solo si tú controlas el repo o tras coordinar con colaboradores.
+- Siempre puedes crear ramas temporales para experimentar sin riesgo.
+
+Tag actual disponible
+- uiux-baseline-2025-09-08 (subido a origin)
+
+Fin del documento.

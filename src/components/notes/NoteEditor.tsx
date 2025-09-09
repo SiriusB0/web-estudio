@@ -34,6 +34,8 @@ interface NoteEditorProps {
   onNoteCreated?: () => void;
   onToggleFocusMode?: () => void;
   onToggleSplitView?: () => void;
+  isSidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export default function NoteEditor({ 
@@ -51,7 +53,9 @@ export default function NoteEditor({
   currentFolderId,
   onNoteCreated,
   onToggleFocusMode,
-  onToggleSplitView
+  onToggleSplitView,
+  isSidebarCollapsed = false,
+  onToggleSidebar
 }: NoteEditorProps) {
 
   // Función para encontrar líneas de una sección
@@ -1291,87 +1295,27 @@ export default function NoteEditor({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Status bar */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-gray-800/50 text-xs text-gray-400" style={{backgroundColor: '#0a0a0a'}}>
-        <div className="flex items-center gap-3">
-          <span className="text-gray-500 font-medium">MD</span>
-          {saving && <span className="text-blue-400 text-xs">●</span>}
-          <div className="flex items-center gap-2 text-xs">
-            <span>{content.length.toLocaleString()}</span>
-            <span className="text-gray-600 text-xs">caracteres</span>
-            <span className="text-gray-600">·</span>
-            <span>{content.trim() ? content.trim().split(/\s+/).length.toLocaleString() : 0}</span>
-            <span className="text-gray-600 text-xs">palabras</span>
-            <span className="text-gray-600">·</span>
-            <span>{content.split('\n').length.toLocaleString()}</span>
-            <span className="text-gray-600 text-xs">líneas</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {viewMode === "edit" && (
-            <button
-              ref={outlineButtonRef}
-              onClick={() => setShowOutline(!showOutline)}
-              className={`px-3 py-2 text-sm rounded transition-colors ${
-                showOutline 
-                  ? 'bg-blue-700 hover:bg-blue-600 text-white' 
-                  : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
-              }`}
-              title="Mostrar/ocultar esquema del documento"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" className="text-current">
-                <path fill="currentColor" d="M3 9h14V7H3v2zm0 4h14v-2H3v2zm0 4h14v-2H3v2zm16 0h2v-2h-2v2zm0-10v2h2V7h-2zm0 6h2v-2h-2v2z"/>
-              </svg>
-            </button>
-          )}
-          {viewMode === "edit" && (
-            <>
-              <button
-                onClick={() => onToggleFocusMode && onToggleFocusMode()}
-                className="p-2 text-sm bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors"
-                title={isFocusMode ? "Salir del Modo Foco" : "Entrar al Modo Foco"}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  {isFocusMode ? (
-                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-                  ) : (
-                    <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
-                  )}
-                </svg>
-              </button>
-
-              <button
-                onClick={() => onToggleSplitView && onToggleSplitView()}
-                className={`p-2 rounded-md hover:bg-gray-700 ${isSplitView ? 'bg-gray-600 text-gray-100' : 'bg-gray-800 text-gray-200'}`}
-                title="Toggle Split View"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-columns-2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg>
-              </button>
-            </>
-          )}
-          {onViewModeChange && (
-            <button
-              onClick={() => onViewModeChange(viewMode === "edit" ? "preview" : "edit")}
-              className="px-3 py-2 text-sm bg-gray-800 hover:bg-gray-700 text-gray-200 rounded transition-colors"
-              title={viewMode === "edit" ? "Vista previa" : "Editar"}
-            >
-{viewMode === "edit" ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" className="text-white">
-                  <path fill="currentColor" d="m20.942 4.278c-.044-.081-.114-.142-.179-.203-2.59-1.601-5.516-2.634-8.695-3.069-.045-.006-.091-.006-.136 0-3.179.436-6.104 1.469-8.695 3.069-.147.092-.237.253-.237.426s.09.334.237.426c1.264.781 2.611 1.422 4.025 1.93-.173.602-.262 1.303-.262 2.145 0 3.505 1.495 5 5 5s5-1.495 5-5c0-.841-.09-1.543-.262-2.145 1.139-.409 2.22-.927 3.262-1.513v5.158c0 .276.224.5.5.5s.5-.224.5-.5v-6.002c0-.081-.024-.155-.058-.222zm-4.942 4.722c0 2.953-1.047 4-4 4s-4-1.047-4-4c0-.739.074-1.344.218-1.851 1.197.37 2.429.669 3.715.846.045.006.091.006.136 0 1.286-.176 2.518-.476 3.715-.846.143.506.217 1.111.217 1.851zm-4-2.005c-2.722-.381-5.246-1.219-7.516-2.495 2.271-1.276 4.794-2.114 7.516-2.495 2.722.381 5.246 1.219 7.516 2.495-2.271 1.276-4.794 2.114-7.516 2.495zm8.999 15.466c.021.275-.184.516-.459.537-.014 0-.027.002-.04.002-.258 0-.477-.198-.498-.461-.246-3.11-1.351-4.93-3.566-5.839-1.99 3.104-4.118 4.2-4.211 4.246-.142.072-.309.072-.449 0-.093-.046-2.221-1.143-4.211-4.246-2.215.909-3.32 2.729-3.566 5.839-.022.276-.254.482-.538.459-.275-.021-.48-.263-.459-.537.292-3.681 1.755-5.855 4.606-6.846.224-.076.469.012.591.213 1.528 2.515 3.205 3.719 3.801 4.093.597-.374 2.273-1.578 3.801-4.093.123-.201.368-.289.591-.213 2.852.99 4.315 3.166 4.606 6.846z"/>
-                </svg>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" className="text-white">
-                  <path fill="currentColor" d="M22.994,5.195c-.011-.067-.277-1.662-1.378-2.774-1.111-1.09-2.712-1.355-2.779-1.366-.119-.021-.239,.005-.342,.068-.122,.075-3.047,1.913-9.049,7.886C3.12,15.305,1.482,17.791,1.415,17.894c-.045,.07-.073,.15-.079,.233l-.334,4.285c-.011,.146,.042,.289,.145,.393,.094,.094,.221,.146,.354,.146,.013,0,.026,0,.039-.001l4.306-.333c.083-.006,.162-.033,.232-.078,.103-.066,2.6-1.697,8.924-7.991,6.002-5.974,7.848-8.886,7.923-9.007,.064-.103,.089-.225,.07-.344ZM14.295,13.838c-5.54,5.514-8.14,7.427-8.661,7.792l-3.59,.278,.278-3.569c.368-.521,2.292-3.109,7.828-8.619,1.773-1.764,3.278-3.166,4.518-4.264,.484,.112,1.721,.468,2.595,1.326,.868,.851,1.23,2.046,1.346,2.526-1.108,1.24-2.525,2.75-4.314,4.531Zm5.095-5.419c-.236-.681-.669-1.608-1.427-2.352-.757-.742-1.703-1.166-2.396-1.397,1.807-1.549,2.902-2.326,3.292-2.59,.396,.092,1.362,.375,2.05,1.049,.675,.682,.963,1.645,1.058,2.042-.265,.388-1.039,1.469-2.577,3.247Z"/>
-                </svg>
-              )}
-            </button>
-          )}
-        </div>
-      </div>
-
       {/* Markdown Toolbar */}
-      {viewMode === "edit" && (
       <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-gray-800/50" style={{backgroundColor: '#0a0a0a'}}>
+        {/* Flecha para mostrar sidebar cuando está colapsado */}
+        {isSidebarCollapsed && !isFocusMode && !isSplitView && viewMode !== "preview" && onToggleSidebar && (
+          <button
+            onClick={onToggleSidebar}
+            className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center mr-1"
+            title="Mostrar explorador"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18l6-6-6-6"/>
+            </svg>
+          </button>
+        )}
+        
+        {/* Separador después de la flecha del sidebar */}
+        {isSidebarCollapsed && !isFocusMode && !isSplitView && viewMode !== "preview" && onToggleSidebar && (
+          <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
+        )}
+        
+        {/* Botones de formato agrupados */}
         <button 
           title="Negrita" 
           onClick={() => handleToolbarInsert('**', '**', true)}
@@ -1478,270 +1422,126 @@ export default function NoteEditor({
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><line x1="2" x2="22" y1="12" y2="12"/></svg>
         </button>
         
-        {/* Separador */}
-        <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
+        {/* Separador entre formato y controles */}
+        <div className="w-px h-4 bg-gray-600/50 mx-2"></div>
         
-        {/* Dropdown de emojis */}
-        <div className="relative">
+        {/* Botones de control */}
+        <div className="flex items-center gap-1">
+          {/* Botón de esquema */}
           <button
-            onClick={() => setShowEmojiDropdown(!showEmojiDropdown)}
-            className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
-            title="Emojis por categorías"
+            ref={outlineButtonRef}
+            onClick={() => setShowOutline(!showOutline)}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              showOutline 
+                ? 'bg-blue-700 hover:bg-blue-600 text-white' 
+                : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+            }`}
+            title="Esquema"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
-              <line x1="9" y1="9" x2="9.01" y2="9"></line>
-              <line x1="15" y1="9" x2="15.01" y2="9"></line>
+            <svg width="14" height="14" viewBox="0 0 24 24" className="text-current">
+              <path fill="currentColor" d="M3 9h14V7H3v2zm0 4h14v-2H3v2zm0 4h14v-2H3v2zm16 0h2v-2h-2v2zm0-10v2h2V7h-2zm0 6h2v-2h-2v2z"/>
             </svg>
           </button>
-          
-          {showEmojiDropdown && (
-            <div className="absolute top-8 left-0 bg-gray-900/95 border border-gray-700 rounded-lg shadow-2xl backdrop-blur-sm p-3 z-50 w-80">
-              <div className="max-h-64 overflow-y-auto">
-                {/* General */}
-                <div className="mb-3">
-                  <div className="text-xs text-gray-400 mb-2 font-medium">General</div>
-                  <div className="grid grid-cols-8 gap-1">
-                    {['📁', '📌', '✅', '⚠️', '🔧', '📚', '📝', '📖', '📑', '🗂️', '🧾', '🖊️'].map(emoji => (
-                      <button
-                        key={emoji}
-                        onClick={() => {
-                          handleToolbarInsert(emoji, '', false);
-                          setShowEmojiDropdown(false);
-                        }}
-                        className="p-1 hover:bg-gray-700/50 rounded text-sm"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Tecnología */}
-                <div className="mb-3">
-                  <div className="text-xs text-gray-400 mb-2 font-medium">Tecnología</div>
-                  <div className="grid grid-cols-8 gap-1">
-                    {['💻', '👨‍💻', '👩‍💻', '⚙️', '🔒', '🧩', '🖱️', '⌨️'].map(emoji => (
-                      <button
-                        key={emoji}
-                        onClick={() => {
-                          handleToolbarInsert(emoji, '', false);
-                          setShowEmojiDropdown(false);
-                        }}
-                        className="p-1 hover:bg-gray-700/50 rounded text-sm"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Estado */}
-                <div className="mb-3">
-                  <div className="text-xs text-gray-400 mb-2 font-medium">Estado</div>
-                  <div className="grid grid-cols-8 gap-1">
-                    {['⏳', '⌛', '🟢', '🔴', '🟡', '🔵', '📊'].map(emoji => (
-                      <button
-                        key={emoji}
-                        onClick={() => {
-                          handleToolbarInsert(emoji, '', false);
-                          setShowEmojiDropdown(false);
-                        }}
-                        className="p-1 hover:bg-gray-700/50 rounded text-sm"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Alertas */}
-                <div className="mb-3">
-                  <div className="text-xs text-gray-400 mb-2 font-medium">Alertas</div>
-                  <div className="grid grid-cols-8 gap-1">
-                    {['❗', '❓', '🚨', '🛑', '🔍', '🧭'].map(emoji => (
-                      <button
-                        key={emoji}
-                        onClick={() => {
-                          handleToolbarInsert(emoji, '', false);
-                          setShowEmojiDropdown(false);
-                        }}
-                        className="p-1 hover:bg-gray-700/50 rounded text-sm"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Herramientas */}
-                <div className="mb-3">
-                  <div className="text-xs text-gray-400 mb-2 font-medium">Herramientas</div>
-                  <div className="grid grid-cols-8 gap-1">
-                    {['🪛', '🛠️', '🧪', '🔬', '🗜️'].map(emoji => (
-                      <button
-                        key={emoji}
-                        onClick={() => {
-                          handleToolbarInsert(emoji, '', false);
-                          setShowEmojiDropdown(false);
-                        }}
-                        className="p-1 hover:bg-gray-700/50 rounded text-sm"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Varios */}
-                <div>
-                  <div className="text-xs text-gray-400 mb-2 font-medium">Varios</div>
-                  <div className="grid grid-cols-8 gap-1">
-                    {['🖥️', '🗄️', '💾', '🧮', '🧵', '📦', '🌐', '🔗', '📡', '🛰️', '⚡', '🔥', '🌀', '🔄', '🗃️', '🛜', '🪟', '🖇️', '💡', '📜'].map(emoji => (
-                      <button
-                        key={emoji}
-                        onClick={() => {
-                          handleToolbarInsert(emoji, '', false);
-                          setShowEmojiDropdown(false);
-                        }}
-                        className="p-1 hover:bg-gray-700/50 rounded text-sm"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-        
-        {/* Dropdown de estructura */}
-        <div className="relative">
+          {/* Botón de vista dividida */}
           <button
-            onClick={() => setShowStructureDropdown(!showStructureDropdown)}
-            className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
-            title="Separadores y estructura"
+            onClick={() => onToggleSplitView && onToggleSplitView()}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              isSplitView 
+                ? 'bg-blue-700 hover:bg-blue-600 text-white' 
+                : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+            }`}
+            title="Vista dividida"
           >
-            ├─
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2"/>
+              <path d="M12 3v18"/>
+            </svg>
           </button>
-          
-          {showStructureDropdown && (
-            <div className="absolute top-8 left-0 bg-gray-900/95 border border-gray-700 rounded-lg shadow-2xl backdrop-blur-sm p-3 z-50 w-48">
-              <div className="text-xs text-gray-400 mb-2 font-medium">Estructura</div>
-              <div className="flex flex-col gap-1">
-                <button
-                  onClick={() => {
-                    handleToolbarInsert('├── ', '', false);
-                    setShowStructureDropdown(false);
-                  }}
-                  className="text-left px-2 py-1 hover:bg-gray-700/50 rounded text-xs text-gray-300 font-mono"
-                >
-                  ├── (Rama)
-                </button>
-                <button
-                  onClick={() => {
-                    handleToolbarInsert('│   ', '', false);
-                    setShowStructureDropdown(false);
-                  }}
-                  className="text-left px-2 py-1 hover:bg-gray-700/50 rounded text-xs text-gray-300 font-mono"
-                >
-                  │ (Línea vertical)
-                </button>
-                <button
-                  onClick={() => {
-                    handleToolbarInsert('└── ', '', false);
-                    setShowStructureDropdown(false);
-                  }}
-                  className="text-left px-2 py-1 hover:bg-gray-700/50 rounded text-xs text-gray-300 font-mono"
-                >
-                  └── (Final)
-                </button>
-                <div className="border-t border-gray-700 my-2"></div>
-                <div className="text-xs text-gray-400 mb-1 font-medium">Checkboxes</div>
-                <button
-                  onClick={() => {
-                    handleToolbarInsert('- [ ] ', '', false);
-                    setShowStructureDropdown(false);
-                  }}
-                  className="text-left px-2 py-1 hover:bg-gray-700/50 rounded text-xs text-gray-300 font-mono"
-                >
-                  [ ] (Sin marcar)
-                </button>
-                <button
-                  onClick={() => {
-                    handleToolbarInsert('- [x] ', '', false);
-                    setShowStructureDropdown(false);
-                  }}
-                  className="text-left px-2 py-1 hover:bg-gray-700/50 rounded text-xs text-gray-300 font-mono"
-                >
-                  [x] (Marcado)
-                </button>
-                <div className="border-t border-gray-700 my-2"></div>
-                <div className="text-xs text-gray-400 mb-1 font-medium">Separadores</div>
-                <button
-                  onClick={() => {
-                    handleToolbarInsert('\n---\n', '', false);
-                    setShowStructureDropdown(false);
-                  }}
-                  className="text-left px-2 py-1 hover:bg-gray-700/50 rounded text-xs text-gray-300"
-                >
-                  --- (Línea horizontal)
-                </button>
-                <button
-                  onClick={() => {
-                    handleToolbarInsert('\n***\n', '', false);
-                    setShowStructureDropdown(false);
-                  }}
-                  className="text-left px-2 py-1 hover:bg-gray-700/50 rounded text-xs text-gray-300"
-                >
-                  *** (Separador grueso)
-                </button>
-              </div>
-            </div>
+
+          {/* Botón de modo foco */}
+          <button
+            onClick={() => onToggleFocusMode && onToggleFocusMode()}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              isFocusMode 
+                ? 'bg-blue-700 hover:bg-blue-600 text-white' 
+                : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+            }`}
+            title={isFocusMode ? "Salir del Modo Foco" : "Modo Foco"}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {isFocusMode ? (
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+              ) : (
+                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+              )}
+            </svg>
+          </button>
+
+          {/* Botón de vista previa */}
+          {onViewModeChange && (
+            <button
+              onClick={() => onViewModeChange(viewMode === "edit" ? "preview" : "edit")}
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                viewMode === "preview" 
+                  ? 'bg-blue-700 hover:bg-blue-600 text-white' 
+                  : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+              }`}
+              title={viewMode === "edit" ? "Vista previa" : "Editar"}
+            >
+              {viewMode === "edit" ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" className="text-current">
+                  <path fill="currentColor" d="m20.942 4.278c-.044-.081-.114-.142-.179-.203-2.59-1.601-5.516-2.634-8.695-3.069-.045-.006-.091-.006-.136 0-3.179.436-6.104 1.469-8.695 3.069-.147.092-.237.253-.237.426s.09.334.237.426c1.264.781 2.611 1.422 4.025 1.93-.173.602-.262 1.303-.262 2.145 0 3.505 1.495 5 5 5s5-1.495 5-5c0-.841-.09-1.543-.262-2.145 1.139-.409 2.22-.927 3.262-1.513v5.158c0 .276.224.5.5.5s.5-.224.5-.5v-6.002c0-.081-.024-.155-.058-.222zm-4.942 4.722c0 2.953-1.047 4-4 4s-4-1.047-4-4c0-.739.074-1.344.218-1.851 1.197.37 2.429.669 3.715.846.045.006.091.006.136 0 1.286-.176 2.518-.476 3.715-.846.143.506.217 1.111.217 1.851zm-4-2.005c-2.722-.381-5.246-1.219-7.516-2.495 2.271-1.276 4.794-2.114 7.516-2.495 2.722.381 5.246 1.219 7.516 2.495-2.271 1.276-4.794 2.114-7.516 2.495zm8.999 15.466c.021.275-.184.516-.459.537-.014 0-.027.002-.04.002-.258 0-.477-.198-.498-.461-.246-3.11-1.351-4.93-3.566-5.839-1.99 3.104-4.118 4.2-4.211 4.246-.142.072-.309.072-.449 0-.093-.046-2.221-1.143-4.211-4.246-2.215.909-3.32 2.729-3.566 5.839-.022.276-.254.482-.538.459-.275-.021-.48-.263-.459-.537.292-3.681 1.755-5.855 4.606-6.846.224-.076.469.012.591.213 1.528 2.515 3.205 3.719 3.801 4.093.597-.374 2.273-1.578 3.801-4.093.123-.201.368-.289.591-.213 2.852.99 4.315 3.166 4.606 6.846z"/>
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" className="text-current">
+                  <path fill="currentColor" d="M22.994,5.195c-.011-.067-.277-1.662-1.378-2.774-1.111-1.09-2.712-1.355-2.779-1.366-.119-.021-.239,.005-.342,.068-.122,.075-3.047,1.913-9.049,7.886C3.12,15.305,1.482,17.791,1.415,17.894c-.045,.07-.073,.15-.079,.233l-.334,4.285c-.011,.146,.042,.289,.145,.393,.094,.094,.221,.146,.354,.146,.013,0,.026,0,.039-.001l4.306-.333c.083-.006,.162-.033,.232-.078,.103-.066,2.6-1.697,8.924-7.991,6.002-5.974,7.848-8.886,7.923-9.007,.064-.103,.089-.225,.07-.344ZM14.295,13.838c-5.54,5.514-8.14,7.427-8.661,7.792l-3.59,.278,.278-3.569c.368-.521,2.292-3.109,7.828-8.619,1.773-1.764,3.278-3.166,4.518-4.264,.484,.112,1.721,.468,2.595,1.326,.868,.851,1.23,2.046,1.346,2.526-1.108,1.24-2.525,2.75-4.314,4.531Zm5.095-5.419c-.236-.681-.669-1.608-1.427-2.352-.757-.742-1.703-1.166-2.396-1.397,1.807-1.549,2.902-2.326,3.292-2.59,.396,.092,1.362,.375,2.05,1.049,.675,.682,.963,1.645,1.058,2.042-.265,.388-1.039,1.469-2.577,3.247Z"/>
+                </svg>
+              )}
+            </button>
           )}
+
+          {/* Separador */}
+          <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
+
+          {/* Información de flashcards */}
+          {flashcardCount > 0 && (
+            <>
+              <span className="text-xs text-blue-400 bg-blue-900/30 px-2 py-1 rounded">
+                📚 {flashcardCount} flashcards
+              </span>
+              <button
+                onClick={() => setShowFlashcardViewer(true)}
+                title="Ver flashcards"
+                className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors"
+              >
+                Ver
+              </button>
+              <button
+                onClick={() => {
+                  if (noteId) {
+                    window.location.href = `/study/${noteId}`;
+                  }
+                }}
+                title="Estudiar flashcards"
+                className="px-2 py-1 text-xs bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
+              >
+                Estudiar
+              </button>
+              <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
+            </>
+          )}
+
+          {/* Información de palabras */}
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <span>{content.trim() ? content.trim().split(/\s+/).length.toLocaleString() : 0}</span>
+            <span className="text-gray-600">palabras</span>
+            <span className="text-gray-600">·</span>
+            <span>{content.length.toLocaleString()}</span>
+            <span className="text-gray-600">caracteres</span>
+          </div>
         </div>
-        
-        {/* Separador */}
-        <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
-        
-        {/* Información de flashcards */}
-        {pendingQuestion ? (
-          <span className="text-xs text-yellow-400 bg-yellow-900/30 px-2 py-1 rounded">
-            ⏳ Pregunta pendiente
-          </span>
-        ) : (
-          <span className="text-xs text-blue-400 bg-blue-900/30 px-2 py-1 rounded">
-            📚 {flashcardCount} flashcards
-          </span>
-        )}
-        
-        {/* Botones de flashcards */}
-        {flashcardCount > 0 && (
-          <>
-            <button
-              onClick={() => setShowFlashcardViewer(true)}
-              className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
-              title="Ver flashcards"
-            >
-              👁️
-            </button>
-            <button
-              onClick={() => {
-                if (noteId) {
-                  window.location.href = `/study/${noteId}`;
-                }
-              }}
-              className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
-              title="Estudiar flashcards"
-            >
-              🎓
-            </button>
-          </>
-        )}
-        </div>
-      )}
+      </div>
 
       {/* Editor or Preview */}
       <div className="flex-1 overflow-hidden relative flex bg-[#1e1e1e]" ref={editorContainerRef}>
