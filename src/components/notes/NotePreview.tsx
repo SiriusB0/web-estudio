@@ -217,9 +217,16 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
       // Crear ID estable basado en el contenido del párrafo
       const textContent = typeof children === 'string' ? children : 
         Array.isArray(children) ? children.join('') : String(children);
-      const lineId = `line-${textContent.slice(0, 50).replace(/\s+/g, '-').toLowerCase()}`;
+      const lineId = `paragraph-${textContent.slice(0, 50).replace(/\s+/g, '-').toLowerCase()}`;
       const hasAnnotation = annotations.some(ann => ann.lineId === lineId);
       const showButton = hoveredLineId === lineId;
+
+      // Estilos optimizados para móvil cuando studyMode es true
+      const mobileStyles = studyMode ? {
+        fontSize: '1.1rem',
+        lineHeight: '1.7',
+        marginBottom: '1.5rem'
+      } : {};
 
       const handleMouseEnter = () => {
         // Limpiar timeout anterior si existe
@@ -250,7 +257,10 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          <p className="text-gray-300 leading-relaxed mb-4">
+          <p 
+            className="text-gray-300 leading-relaxed mb-4"
+            style={mobileStyles}
+          >
             {children}
             
             {/* Icono de nota existente */}
@@ -274,10 +284,10 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
               </button>
             )}
             
-            {/* Botón + para nueva anotación */}
+            {/* Botón + para nueva anotación en párrafos */}
             {!hasAnnotation && showButton && (
               <button
-                className="ml-2 w-4 h-4 text-gray-500 hover:text-gray-300 opacity-40 hover:opacity-70 transition-all inline-flex items-center justify-center text-xs align-top"
+                className="ml-2 w-5 h-5 text-white hover:text-gray-200 bg-white/20 hover:bg-white/30 rounded-full transition-all inline-flex items-center justify-center text-sm align-top border border-white/40"
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   setAnnotationPosition({ x: rect.left - 320, y: rect.top });
@@ -294,7 +304,81 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
         </div>
       );
     },
-    li: ({ children }: any) => <li className="text-gray-300">{children}</li>,
+    li: ({ children }: any) => {
+      // Crear ID específico para elementos de lista
+      const textContent = typeof children === 'string' ? children : 
+        Array.isArray(children) ? children.join('') : String(children);
+      const lineId = `listitem-${textContent.slice(0, 50).replace(/\s+/g, '-').toLowerCase()}`;
+      const hasAnnotation = annotations.some(ann => ann.lineId === lineId);
+      const showButton = hoveredLineId === lineId;
+
+      const handleMouseEnter = () => {
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout);
+        }
+        
+        const timeout = setTimeout(() => {
+          setHoveredLineId(lineId);
+        }, 2000);
+        
+        setHoverTimeout(timeout);
+      };
+
+      const handleMouseLeave = () => {
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout);
+          setHoverTimeout(null);
+        }
+        setHoveredLineId('');
+      };
+
+      return (
+        <li 
+          className="text-gray-300 relative"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          {children}
+          
+          {/* Icono de nota existente para lista */}
+          {hasAnnotation && (
+            <button
+              className="ml-2 w-4 h-4 text-gray-400 hover:text-gray-200 opacity-50 hover:opacity-80 transition-all inline-flex items-center justify-center align-top"
+              onClick={(e) => {
+                const annotation = annotations.find(ann => ann.lineId === lineId);
+                if (annotation) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setAnnotationPosition({ x: rect.left - 320, y: rect.top });
+                  setEditingAnnotationId(annotation.id);
+                  setShowAnnotation(true);
+                  setCurrentLineId(lineId);
+                }
+              }}
+              title="Ver/editar anotación"
+            >
+              📄
+            </button>
+          )}
+          
+          {/* Botón + para nueva anotación en lista */}
+          {!hasAnnotation && showButton && (
+            <button
+              className="ml-2 w-5 h-5 text-white hover:text-gray-200 bg-white/20 hover:bg-white/30 rounded-full transition-all inline-flex items-center justify-center text-sm align-top border border-white/40"
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setAnnotationPosition({ x: rect.left - 320, y: rect.top });
+                setEditingAnnotationId(null);
+                setShowAnnotation(true);
+                setCurrentLineId(lineId);
+              }}
+              title="Agregar anotación a este elemento"
+            >
+              +
+            </button>
+          )}
+        </li>
+      );
+    },
     blockquote: ({ children }: any) => (
       <blockquote className="border-l-4 border-gray-600 bg-gray-800 pl-4 py-2 my-4 text-gray-300">
         {children}
@@ -323,7 +407,7 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
       );
     }
     
-    // === Vista Previa: Configuración de tamaños y colores de encabezados ===
+    // === Modo Estudio: Configuración de tamaños y colores de encabezados ===
     // Colores: definidos en headerTextClasses (theme.ts)
     // Tamaños: headerSizes (rem) para vista normal, headerSizesStudy (em) para modo estudio
     // Pesos: headerWeights para cada nivel

@@ -24,6 +24,8 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [modalImageUrl, setModalImageUrl] = useState("");
   const [modalImageName, setModalImageName] = useState("");
+  const [touchStartX, setTouchStartX] = useState(0);
+  const [touchStartY, setTouchStartY] = useState(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -87,6 +89,38 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
     setModalImageUrl(imageUrl);
     setModalImageName(imageName);
     setImageModalOpen(true);
+  };
+
+  // Detectar si es dispositivo móvil
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+
+  // Manejar gestos de deslizamiento
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartX || !touchStartY) return;
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchStartX - touchEndX;
+    const deltaY = touchStartY - touchEndY;
+
+    // Solo procesar si el deslizamiento horizontal es mayor que el vertical
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+      if (deltaX > 0 && !isLastCard) {
+        // Deslizar izquierda = siguiente
+        handleNext();
+      } else if (deltaX < 0 && currentIndex > 0) {
+        // Deslizar derecha = anterior
+        handlePrevious();
+      }
+    }
+
+    setTouchStartX(0);
+    setTouchStartY(0);
   };
 
   // Componentes de renderizado para Markdown con soporte Mermaid
@@ -174,8 +208,12 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-gray-900 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 md:p-4">
+        <div 
+          className="bg-gray-900 rounded-lg w-full max-w-2xl max-h-[95vh] md:max-h-[90vh] overflow-hidden relative"
+          onTouchStart={isMobile ? handleTouchStart : undefined}
+          onTouchEnd={isMobile ? handleTouchEnd : undefined}
+        >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-gray-700">
             <div>
@@ -238,79 +276,99 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
           ) : (
             <>
               {/* Card Content */}
-              <div className="p-6 min-h-[300px] flex flex-col justify-center">
+              <div className="p-3 md:p-6 min-h-[250px] md:min-h-[300px] flex flex-col justify-center">
                 <div className="text-center mb-4">
                   <span className="text-sm text-gray-400">
                     Tarjeta {currentIndex + 1} de {flashcards.length}
                   </span>
                 </div>
 
-                {/* Question (Front) */}
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium text-white mb-3">Pregunta:</h3>
-                  <div className="bg-gray-800 p-4 rounded-lg">
-                    {currentCard.front_image_url ? (
-                      <div className="text-center">
-                        <img
-                          src={currentCard.front_image_url}
-                          alt={currentCard.front_image_name || "Imagen pregunta"}
-                          className="max-w-full max-h-48 object-contain mx-auto bg-gray-700 rounded cursor-pointer"
-                          onClick={() => openImageModal(currentCard.front_image_url!, currentCard.front_image_name || "Imagen pregunta")}
-                        />
-                        {currentCard.front && (
-                          <p className="text-white mt-3">{currentCard.front}</p>
+                {/* Flashcard Container with Flip Animation */}
+                <div className="mb-4 md:mb-6 perspective-1000">
+                  <div 
+                    className={`relative w-full min-h-[180px] md:min-h-[200px] transition-transform duration-700 transform-style-preserve-3d cursor-pointer ${
+                      showAnswer ? 'rotate-y-180' : ''
+                    }`}
+                    onClick={() => !showAnswer && setShowAnswer(true)}
+                  >
+                    {/* Front Side */}
+                    <div className="absolute inset-0 backface-hidden">
+                      <h3 className="text-base md:text-lg font-medium text-white mb-2 md:mb-3">Pregunta:</h3>
+                      <div className="bg-gray-800 p-3 md:p-4 rounded-lg h-full flex items-center justify-center">
+                        {currentCard.front_image_url ? (
+                          <div className="text-center">
+                            <img
+                              src={currentCard.front_image_url}
+                              alt={currentCard.front_image_name || "Imagen pregunta"}
+                              className="max-w-full max-h-32 md:max-h-48 object-contain mx-auto bg-gray-700 rounded cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openImageModal(currentCard.front_image_url!, currentCard.front_image_name || "Imagen pregunta");
+                              }}
+                            />
+                            {currentCard.front && (
+                              <p className="text-white mt-3">{currentCard.front}</p>
+                            )}
+                          </div>
+                        ) : (
+                          renderContent(currentCard.front)
                         )}
                       </div>
-                    ) : (
-                      renderContent(currentCard.front)
-                    )}
+                    </div>
+
+                    {/* Back Side */}
+                    <div className="absolute inset-0 backface-hidden rotate-y-180">
+                      <h3 className="text-base md:text-lg font-medium text-white mb-2 md:mb-3">Respuesta:</h3>
+                      <div className="bg-gray-800 p-3 md:p-4 rounded-lg border-l-4 border-blue-500 h-full flex items-center justify-center">
+                        {currentCard.back_image_url ? (
+                          <div className="text-center">
+                            <img
+                              src={currentCard.back_image_url}
+                              alt={currentCard.back_image_name || "Imagen respuesta"}
+                              className="max-w-full max-h-32 md:max-h-48 object-contain mx-auto bg-gray-700 rounded cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openImageModal(currentCard.back_image_url!, currentCard.back_image_name || "Imagen respuesta");
+                              }}
+                            />
+                            {currentCard.back && (
+                              <p className="text-white mt-3">{currentCard.back}</p>
+                            )}
+                          </div>
+                        ) : (
+                          renderContent(currentCard.back)
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Answer (Back) */}
-                {showAnswer && (
-                  <div className="mb-6">
-                    <h3 className="text-lg font-medium text-white mb-3">Respuesta:</h3>
-                    <div className="bg-gray-800 p-4 rounded-lg border-l-4 border-blue-500">
-                      {currentCard.back_image_url ? (
-                        <div className="text-center">
-                          <img
-                            src={currentCard.back_image_url}
-                            alt={currentCard.back_image_name || "Imagen respuesta"}
-                            className="max-w-full max-h-48 object-contain mx-auto bg-gray-700 rounded cursor-pointer"
-                            onClick={() => openImageModal(currentCard.back_image_url!, currentCard.back_image_name || "Imagen respuesta")}
-                          />
-                          {currentCard.back && (
-                            <p className="text-white mt-3">{currentCard.back}</p>
-                          )}
-                        </div>
-                      ) : (
-                        renderContent(currentCard.back)
-                      )}
-                    </div>
-                  </div>
-                )}
 
                 {/* Action Buttons */}
                 <div className="flex justify-center gap-3">
                   {!showAnswer ? (
-                    <button
-                      onClick={() => setShowAnswer(true)}
-                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-                    >
-                      Mostrar Respuesta
-                    </button>
+                    <div className="text-center">
+                      <p className="text-xs md:text-sm text-gray-400 mb-2 md:mb-3">
+                        {isMobile ? 'Toca la tarjeta o desliza ← →' : 'Toca la tarjeta para voltearla'}
+                      </p>
+                      <button
+                        onClick={() => setShowAnswer(true)}
+                        className="px-4 md:px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors text-sm md:text-base"
+                      >
+                        Mostrar Respuesta
+                      </button>
+                    </div>
                   ) : (
-                    <div className="flex gap-3">
+                    <div className="flex gap-2 md:gap-3">
                       <button
                         onClick={() => handleAnswer(false)}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
+                        className="px-3 md:px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors text-sm md:text-base"
                       >
                         ❌ Incorrecta
                       </button>
                       <button
                         onClick={() => handleAnswer(true)}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                        className="px-3 md:px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition-colors text-sm md:text-base"
                       >
                         ✅ Correcta
                       </button>
@@ -319,21 +377,23 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
                 </div>
               </div>
 
-              {/* Navigation */}
-              <div className="flex items-center justify-between p-4 border-t border-gray-700">
-                <button
-                  onClick={handlePrevious}
-                  disabled={currentIndex === 0}
-                  className={`px-3 py-1 text-sm rounded transition-colors ${
-                    currentIndex === 0
-                      ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                      : 'bg-gray-600 hover:bg-gray-500 text-white'
-                  }`}
-                >
-                  ← Anterior
-                </button>
+              {/* Navigation - Solo indicadores en móvil, botones en desktop */}
+              <div className="flex items-center justify-center p-3 md:p-4 border-t border-gray-700">
+                {!isMobile && (
+                  <button
+                    onClick={handlePrevious}
+                    disabled={currentIndex === 0}
+                    className={`px-3 py-1 text-sm rounded transition-colors ${
+                      currentIndex === 0
+                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                        : 'bg-gray-600 hover:bg-gray-500 text-white'
+                    }`}
+                  >
+                    ← Anterior
+                  </button>
+                )}
 
-                <div className="flex gap-2">
+                <div className={`flex gap-1 md:gap-2 ${!isMobile ? 'mx-4' : ''}`}>
                   {flashcards.map((_, index) => (
                     <div
                       key={index}
@@ -348,17 +408,19 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
                   ))}
                 </div>
 
-                <button
-                  onClick={handleNext}
-                  disabled={isLastCard}
-                  className={`px-3 py-1 text-sm rounded transition-colors ${
-                    isLastCard
-                      ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                      : 'bg-gray-600 hover:bg-gray-500 text-white'
-                  }`}
-                >
-                  Siguiente →
-                </button>
+                {!isMobile && (
+                  <button
+                    onClick={handleNext}
+                    disabled={isLastCard}
+                    className={`px-3 py-1 text-sm rounded transition-colors ${
+                      isLastCard
+                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                        : 'bg-gray-600 hover:bg-gray-500 text-white'
+                    }`}
+                  >
+                    Siguiente →
+                  </button>
+                )}
               </div>
             </>
           )}

@@ -38,7 +38,7 @@ export default function NoteEditPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"edit" | "preview" | "split">("split");
 
-  // Detectar si se debe abrir en modo vista previa
+  // Detectar si se debe abrir en modo estudio
   useEffect(() => {
     const viewParam = searchParams.get('view');
     if (viewParam === 'preview') {
@@ -247,7 +247,7 @@ export default function NoteEditPage() {
               onClick={() => setViewMode("preview")}
               className={`px-3 py-1 text-sm rounded ${viewMode === "preview" ? "bg-black text-white" : "border"}`}
             >
-              Vista previa
+              Modo Estudio
             </button>
           </div>
         </div>

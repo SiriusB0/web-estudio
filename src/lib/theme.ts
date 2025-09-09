@@ -5,12 +5,12 @@
  * Dónde se usan:
  * - Editor (CodeMirror): `headerColors` es consumido en `NoteEditor.tsx`
  *   dentro de `customSyntaxHighlighting` para colorear los tokens de heading.
- * - Vista previa (ReactMarkdown): `headerTextClasses` es consumido en
+ * - Modo Estudio (ReactMarkdown): `headerTextClasses` es consumido en
  *   `NotePreview.tsx` para asignar clases Tailwind por nivel de header.
  * 
  * Cómo cambiar COLORES:
  * - Cambia los valores hex de `headerColors` (afecta al editor).
- * - Cambia las clases en `headerTextClasses` (afecta a la vista previa).
+ * - Cambia las clases en `headerTextClasses` (afecta al modo estudio).
  *   Recomendado mantener ambos en sincronía para consistencia visual.
  * 
  * Ejemplo rápido:
@@ -30,7 +30,7 @@ export const headerColors = {
 
 /**
  * Tamaños de encabezados para vista normal (rem) - tamaños fijos basados en fuente raíz.
- * Cambiar aquí afecta editor y vista previa automáticamente.
+ * Cambiar aquí afecta editor y modo estudio automáticamente.
  */
 export const headerSizes = {
   h1: '2.5rem',   // 40px aprox.
@@ -46,12 +46,12 @@ export const headerSizes = {
  * Se escalan automáticamente cuando cambias el tamaño de fuente.
  */
 export const headerSizesStudy = {
-  h1: '2.5em',    // 2.5 × tamaño base
-  h2: '2em',      // 2 × tamaño base
-  h3: '1.7em',    // 1.7 × tamaño base
-  h4: '1.4em',    // 1.4 × tamaño base
-  h5: '1.2em',    // 1.2 × tamaño base
-  h6: '1em',      // igual al tamaño base
+  h1: '1.6em',    // más compacto para móvil
+  h2: '1.4em',
+  h3: '1.2em',
+  h4: '1.1em',
+  h5: '1.05em',
+  h6: '1em',
 };
 
 /**

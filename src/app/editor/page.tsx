@@ -8,7 +8,9 @@ import NoteEditor from "@/components/notes/NoteEditor";
 import NotePreview from "@/components/notes/NotePreview";
 import DocumentOutline from "@/components/notes/DocumentOutline";
 import { AnnotationsList } from "@/components/notes/AnnotationsList";
+import MobileStudyInterface from "@/components/notes/MobileStudyInterface";
 import { extractWikiLinks, updateNoteLinks } from "@/lib/notes/wikilinks";
+import { isMobileDevice } from "@/lib/utils/deviceDetection";
 
 type Note = {
   id: string;
@@ -36,6 +38,7 @@ export default function EditorPage() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [explorerKey, setExplorerKey] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const router = useRouter();
 
   // Cerrar esquema al cambiar de modo
@@ -46,6 +49,9 @@ export default function EditorPage() {
   }, [viewMode, showOutline]);
 
   useEffect(() => {
+    // Detectar dispositivo móvil
+    setIsMobile(isMobileDevice());
+    
     // Verificar si hay parámetro note en URL ANTES de checkAuth
     const urlParams = new URLSearchParams(window.location.search);
     const noteParam = urlParams.get('note');
@@ -418,6 +424,11 @@ Escribe aquí tu contenido...`;
     return null; // Will redirect to login
   }
 
+  // Mostrar interfaz móvil si es dispositivo móvil
+  if (isMobile) {
+    return <MobileStudyInterface user={user} initialNote={currentNote} />;
+  }
+
   return (
     <div className="h-screen flex" style={{backgroundColor: '#0a0a0a'}}>
       {/* Sidebar */}
@@ -469,7 +480,7 @@ Escribe aquí tu contenido...`;
                 <div className="h-full flex flex-col">
                   {/* Preview Status Bar */}
                   <div className="flex items-center px-2 py-1.5 border-b border-gray-800/50 text-xs text-gray-300" style={{backgroundColor: '#0a0a0a'}}>
-                    <span className="text-gray-400 flex-shrink-0">Vista previa</span>
+                    <span className="text-gray-400 flex-shrink-0">Modo Estudio</span>
                     <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                       <button
                         ref={outlineButtonRef}
@@ -571,7 +582,7 @@ Escribe aquí tu contenido...`;
           onToggle={() => setShowOutline(!showOutline)}
           buttonRef={outlineButtonRef}
           onNavigate={(line) => {
-            // En modo vista previa, buscar el elemento por ID y hacer scroll
+            // En modo estudio, buscar el elemento por ID y hacer scroll
             const lines = currentNote.content_md.split('\n');
             const targetLine = lines[line - 1];
             

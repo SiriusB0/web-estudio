@@ -1487,7 +1487,7 @@ export default function NoteEditor({
                   ? 'bg-blue-700 hover:bg-blue-600 text-white' 
                   : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
               }`}
-              title={viewMode === "edit" ? "Vista previa" : "Editar"}
+              title={viewMode === "edit" ? "Modo Estudio" : "Editar"}
             >
               {viewMode === "edit" ? (
                 <svg width="14" height="14" viewBox="0 0 24 24" className="text-current">
