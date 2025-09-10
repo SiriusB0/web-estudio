@@ -929,18 +929,21 @@ Escribe aquí tu contenido...`;
             <>
               {/* Checkbox for selection */}
               <div
-                className="opacity-0 group-hover:opacity-100 mr-2 ml-5 checkbox-container"
+                className={`mr-2 ml-5 checkbox-container transition-opacity duration-200 ${
+                  isSelectionMode || isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                }`}
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   toggleNoteSelection(item.id);
                   setIsSelectionMode(true);
                 }}
               >
-                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center cursor-pointer ${
+                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center cursor-pointer transition-all duration-200 ${
                   isSelected 
-                    ? 'bg-blue-500 border-blue-500' 
-                    : 'border-gray-500 hover:border-gray-300'
+                    ? 'bg-blue-500 border-blue-500 scale-110' 
+                    : 'border-gray-500 hover:border-gray-300 hover:bg-gray-700'
                 }`}>
                   {isSelected && (
                     <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -1122,41 +1125,53 @@ Escribe aquí tu contenido...`;
               </svg>
             </button>
 
-            {/* Selection Controls */}
-            {selectedNotes.size > 0 && (
-              <div className="bg-gray-900 rounded p-2 text-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-300">{selectedNotes.size} seleccionadas</span>
-                  <button
-                    onClick={clearSelection}
-                    className="text-gray-400 hover:text-gray-200 text-xs"
-                  >
-                    Limpiar
-                  </button>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={selectAllNotes}
-                    className="px-2 py-1 text-xs bg-gray-800 hover:bg-gray-700 text-gray-200 rounded"
-                  >
-                    Todas
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteSelectedNotes();
-                    }}
-                    className="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded cursor-pointer"
-                    style={{ pointerEvents: 'auto' }}
-                  >
-                    Eliminar
-                  </button>
-                </div>
+            {/* Controles de selección múltiple compactos */}
+            {(selectedNotes.size > 0 || isSelectionMode) && (
+              <div className="flex items-center gap-1 ml-2">
+                <button
+                  onClick={selectAllNotes}
+                  className="p-1.5 bg-blue-600/20 hover:bg-blue-600/30 rounded transition-colors border border-blue-500/50 hover:border-blue-400/50"
+                  title="Seleccionar todas"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" className="text-blue-400">
+                    <path fill="currentColor" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                  </svg>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    deleteSelectedNotes();
+                  }}
+                  disabled={selectedNotes.size === 0}
+                  className={`p-1.5 rounded transition-colors border ${
+                    selectedNotes.size > 0 
+                      ? 'bg-red-600/20 hover:bg-red-600/30 border-red-500/50 hover:border-red-400/50 cursor-pointer' 
+                      : 'bg-gray-700/50 border-gray-600/50 cursor-not-allowed'
+                  }`}
+                  title={`Eliminar ${selectedNotes.size} nota${selectedNotes.size !== 1 ? 's' : ''}`}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" className={selectedNotes.size > 0 ? "text-red-400" : "text-gray-500"}>
+                    <path fill="currentColor" d="M7 21q-.825 0-1.413-.588T5 19V6H4V4h5V3h6v1h5v2h-1v13q0 .825-.588 1.413T17 21H7ZM17 6H7v13h10V6ZM9 17h2V8H9v9Zm4 0h2V8h-2v9ZM7 6v13V6Z"/>
+                  </svg>
+                </button>
+
+                <button
+                  onClick={clearSelection}
+                  className="p-1.5 bg-gray-600/20 hover:bg-gray-600/30 rounded transition-colors border border-gray-500/50 hover:border-gray-400/50"
+                  title="Cancelar selección"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" className="text-gray-400">
+                    <path fill="currentColor" d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z"/>
+                  </svg>
+                </button>
               </div>
             )}
           </div>
         )}
+        
       </div>
 
       {/* Tree View */}
@@ -1319,6 +1334,7 @@ Escribe aquí tu contenido...`;
           </div>
         </div>
       )}
+
     </div>
   );
 }

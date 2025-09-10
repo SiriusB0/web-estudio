@@ -162,6 +162,12 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
       return `<span style="color: ${color}">${text}</span>`;
     });
     
+    // Primero procesar divisores antes de convertir saltos de línea
+    cleanContent = cleanContent.replace(/^([-*]{3,})\s*$/gm, '<hr class="my-6 border-t-2 border-gray-500 opacity-60">');
+    
+    // Luego convertir todos los saltos de línea en <br> tags para preservar múltiples saltos
+    cleanContent = cleanContent.replace(/\n/g, '<br>');
+    
     return cleanContent;
   };
 
@@ -258,7 +264,7 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
           onMouseLeave={handleMouseLeave}
         >
           <p 
-            className="text-gray-300 leading-relaxed mb-4"
+            className="text-gray-300 leading-relaxed mb-4 whitespace-pre-wrap"
             style={mobileStyles}
           >
             {children}
@@ -383,6 +389,18 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
       <blockquote className="border-l-4 border-gray-600 bg-gray-800 pl-4 py-2 my-4 text-gray-300">
         {children}
       </blockquote>
+    ),
+    ul: ({ children }: any) => (
+      <ul className="list-disc list-inside text-gray-300 mb-3">{children}</ul>
+    ),
+    ol: ({ children }: any) => (
+      <ol className="list-decimal list-inside text-gray-300 mb-3">{children}</ol>
+    ),
+    hr: ({ ...props }: any) => (
+      <hr className="my-6 border-t-2 border-gray-500 opacity-60" {...props} />
+    ),
+    thematicBreak: ({ ...props }: any) => (
+      <hr className="my-6 border-t-2 border-gray-500 opacity-60" {...props} />
     )
   };
 

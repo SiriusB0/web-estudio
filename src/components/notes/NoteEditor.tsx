@@ -438,7 +438,7 @@ export default function NoteEditor({
     decorations: v => v.decorations
   });
 
-  // Extension para detectar cuando se borra la última letra de texto coloreado
+  // Extension para detectar cuando se borra la última letra de texto coloreado y para auto-indentado de listas
   const colorKeymap = keymap.of([
     {
       key: "Backspace",
@@ -662,6 +662,8 @@ export default function NoteEditor({
   const [showOutline, setShowOutline] = useState(false);
   const [showEmojiDropdown, setShowEmojiDropdown] = useState(false);
   const [showStructureDropdown, setShowStructureDropdown] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [helpSection, setHelpSection] = useState<string | null>(null);
   const outlineButtonRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
   
@@ -1372,6 +1374,18 @@ export default function NoteEditor({
         >
           🔗
         </button>
+
+        {/* Botón de ayuda */}
+        <button
+          onClick={() => {
+            setShowHelp(true);
+            setHelpSection(null);
+          }}
+          title="Guía de ayuda"
+          className="w-7 h-7 text-xs text-gray-400 hover:text-white hover:bg-gray-700/50 rounded transition-colors flex items-center justify-center"
+        >
+          ❓
+        </button>
         
         {/* Separador */}
         <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
@@ -1477,6 +1491,7 @@ export default function NoteEditor({
               )}
             </svg>
           </button>
+
 
           {/* Botón de vista previa */}
           {onViewModeChange && (
@@ -1711,6 +1726,318 @@ export default function NoteEditor({
             }
           }}
         />
+      )}
+
+      {/* Modal de ayuda */}
+      {showHelp && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-lg shadow-xl border border-gray-700 w-full max-w-4xl h-5/6 flex">
+            {/* Navegación lateral */}
+            <div className="w-1/3 border-r border-gray-700 p-4 overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-white">Guía de Usuario</h3>
+                <button
+                  onClick={() => setShowHelp(false)}
+                  className="text-gray-400 hover:text-white p-1 hover:bg-gray-700 rounded transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <nav className="space-y-2">
+                <button
+                  onClick={() => setHelpSection('formato')}
+                  className={`w-full text-left px-3 py-2 rounded transition-colors ${
+                    helpSection === 'formato' ? 'bg-blue-700 text-white' : 'text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  Formato de Texto
+                </button>
+                <button
+                  onClick={() => setHelpSection('preformateado')}
+                  className={`w-full text-left px-3 py-2 rounded transition-colors ${
+                    helpSection === 'preformateado' ? 'bg-blue-700 text-white' : 'text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  Texto Preformateado
+                </button>
+                <button
+                  onClick={() => setHelpSection('listas')}
+                  className={`w-full text-left px-3 py-2 rounded transition-colors ${
+                    helpSection === 'listas' ? 'bg-blue-700 text-white' : 'text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  Listas
+                </button>
+                <button
+                  onClick={() => setHelpSection('citas')}
+                  className={`w-full text-left px-3 py-2 rounded transition-colors ${
+                    helpSection === 'citas' ? 'bg-blue-700 text-white' : 'text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  Citas
+                </button>
+                <button
+                  onClick={() => setHelpSection('negrita-cursiva')}
+                  className={`w-full text-left px-3 py-2 rounded transition-colors ${
+                    helpSection === 'negrita-cursiva' ? 'bg-blue-700 text-white' : 'text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  Negrita y Cursiva
+                </button>
+                <button
+                  onClick={() => setHelpSection('codigo')}
+                  className={`w-full text-left px-3 py-2 rounded transition-colors ${
+                    helpSection === 'codigo' ? 'bg-blue-700 text-white' : 'text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  Bloques de Código
+                </button>
+                <button
+                  onClick={() => setHelpSection('enlaces')}
+                  className={`w-full text-left px-3 py-2 rounded transition-colors ${
+                    helpSection === 'enlaces' ? 'bg-blue-700 text-white' : 'text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  Enlaces Externos
+                </button>
+                <button
+                  onClick={() => setHelpSection('wikilinks')}
+                  className={`w-full text-left px-3 py-2 rounded transition-colors ${
+                    helpSection === 'wikilinks' ? 'bg-blue-700 text-white' : 'text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  Wikilinks
+                </button>
+                <button
+                  onClick={() => setHelpSection('anotaciones')}
+                  className={`w-full text-left px-3 py-2 rounded transition-colors ${
+                    helpSection === 'anotaciones' ? 'bg-blue-700 text-white' : 'text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  Anotaciones en Modo Estudio
+                </button>
+              </nav>
+            </div>
+
+            {/* Contenido principal */}
+            <div className="flex-1 p-6 overflow-y-auto">
+              {!helpSection && (
+                <div className="text-gray-300">
+                  <h2 className="text-2xl font-bold text-white mb-4">Bienvenido a la Guía de Usuario</h2>
+                  <p className="mb-4">
+                    Esta guía te ayudará a aprovechar al máximo todas las funcionalidades de la plataforma de estudio.
+                  </p>
+                  <p>
+                    Selecciona una sección del menú lateral para comenzar.
+                  </p>
+                </div>
+              )}
+
+              {helpSection === 'formato' && (
+                <div className="text-gray-300">
+                  <h2 className="text-2xl font-bold text-white mb-4">Formato de Texto</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Encabezados</h3>
+                      <p className="mb-2">Usa # para crear encabezados de diferentes niveles:</p>
+                      <div className="bg-gray-800 p-3 rounded font-mono text-sm">
+                        # Encabezado 1<br/>
+                        ## Encabezado 2<br/>
+                        ### Encabezado 3
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Párrafos</h3>
+                      <p>Los párrafos se crean automáticamente. Deja una línea en blanco para separar párrafos.</p>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Saltos de línea</h3>
+                      <p>Para forzar un salto de línea, termina la línea con dos espacios o usa dos enters.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {helpSection === 'preformateado' && (
+                <div className="text-gray-300">
+                  <h2 className="text-2xl font-bold text-white mb-4">Texto Preformateado</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Código inline</h3>
+                      <p className="mb-2">Usa backticks para código inline:</p>
+                      <div className="bg-gray-800 p-3 rounded font-mono text-sm">
+                        Usa `console.log()` para imprimir en consola.
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Bloques de código</h3>
+                      <p className="mb-2">Usa triple backticks para bloques de código:</p>
+                      <div className="bg-gray-800 p-3 rounded font-mono text-sm">
+                        ```javascript<br/>
+                        function saludar() {`{`}<br/>
+                        &nbsp;&nbsp;console.log("¡Hola!");<br/>
+                        {`}`}<br/>
+                        ```
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {helpSection === 'listas' && (
+                <div className="text-gray-300">
+                  <h2 className="text-2xl font-bold text-white mb-4">Listas</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Listas con guiones</h3>
+                      <p className="mb-2">Usa - para crear listas:</p>
+                      <div className="bg-gray-800 p-3 rounded font-mono text-sm">
+                        - Primer elemento<br/>
+                        - Segundo elemento<br/>
+                        - Tercer elemento
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Listas numeradas</h3>
+                      <p className="mb-2">Usa números seguidos de punto:</p>
+                      <div className="bg-gray-800 p-3 rounded font-mono text-sm">
+                        1. Primer paso<br/>
+                        2. Segundo paso<br/>
+                        3. Tercer paso
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {helpSection === 'citas' && (
+                <div className="text-gray-300">
+                  <h2 className="text-2xl font-bold text-white mb-4">Citas</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Bloques de cita</h3>
+                      <p className="mb-2">Usa &gt; para crear citas:</p>
+                      <div className="bg-gray-800 p-3 rounded font-mono text-sm">
+                        &gt; Esta es una cita importante.<br/>
+                        &gt; Puede tener múltiples líneas.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {helpSection === 'negrita-cursiva' && (
+                <div className="text-gray-300">
+                  <h2 className="text-2xl font-bold text-white mb-4">Negrita y Cursiva</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Texto en negrita</h3>
+                      <p className="mb-2">Usa ** para texto en negrita:</p>
+                      <div className="bg-gray-800 p-3 rounded font-mono text-sm">
+                        **Este texto está en negrita**
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Texto en cursiva</h3>
+                      <p className="mb-2">Usa * para texto en cursiva:</p>
+                      <div className="bg-gray-800 p-3 rounded font-mono text-sm">
+                        *Este texto está en cursiva*
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {helpSection === 'codigo' && (
+                <div className="text-gray-300">
+                  <h2 className="text-2xl font-bold text-white mb-4">Bloques de Código</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Sintaxis básica</h3>
+                      <p className="mb-2">Usa triple backticks para crear bloques de código:</p>
+                      <div className="bg-gray-800 p-3 rounded font-mono text-sm">
+                        ```<br/>
+                        Tu código aquí<br/>
+                        ```
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Con lenguaje específico</h3>
+                      <p className="mb-2">Especifica el lenguaje para resaltado de sintaxis:</p>
+                      <div className="bg-gray-800 p-3 rounded font-mono text-sm">
+                        ```python<br/>
+                        def saludar():<br/>
+                        &nbsp;&nbsp;&nbsp;&nbsp;print("¡Hola mundo!")<br/>
+                        ```
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {helpSection === 'enlaces' && (
+                <div className="text-gray-300">
+                  <h2 className="text-2xl font-bold text-white mb-4">Enlaces Externos</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Sintaxis de enlaces</h3>
+                      <p className="mb-2">Usa la sintaxis [texto](url) para crear enlaces:</p>
+                      <div className="bg-gray-800 p-3 rounded font-mono text-sm">
+                        [Google](https://www.google.com)<br/>
+                        [Wikipedia](https://es.wikipedia.org)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {helpSection === 'wikilinks' && (
+                <div className="text-gray-300">
+                  <h2 className="text-2xl font-bold text-white mb-4">Wikilinks</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Enlaces internos</h3>
+                      <p className="mb-2">Usa [[]] para crear enlaces a otras notas:</p>
+                      <div className="bg-gray-800 p-3 rounded font-mono text-sm">
+                        [[Nombre de la nota]]<br/>
+                        [[Otra nota importante]]
+                      </div>
+                      <p className="mt-2 text-sm text-gray-400">
+                        Si la nota no existe, se creará automáticamente al hacer clic.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {helpSection === 'anotaciones' && (
+                <div className="text-gray-300">
+                  <h2 className="text-2xl font-bold text-white mb-4">Anotaciones en Modo Estudio</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Crear flashcards rápidamente</h3>
+                      <p className="mb-2">Usa estos atajos de teclado:</p>
+                      <div className="bg-gray-800 p-3 rounded">
+                        <p><strong>Alt + Q:</strong> Selecciona texto y guárdalo como pregunta</p>
+                        <p><strong>Alt + A:</strong> Selecciona texto y guárdalo como respuesta</p>
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-400 mb-2">Proceso paso a paso</h3>
+                      <ol className="list-decimal list-inside space-y-2">
+                        <li>Selecciona el texto que quieres usar como pregunta</li>
+                        <li>Presiona Alt + Q para guardarlo</li>
+                        <li>Selecciona el texto que quieres usar como respuesta</li>
+                        <li>Presiona Alt + A para crear la flashcard</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
