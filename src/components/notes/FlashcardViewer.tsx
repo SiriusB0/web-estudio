@@ -1,10 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Flashcard, getFlashcardsForNote, deleteFlashcard, deleteFlashcards, updateFlashcard } from "@/lib/notes/flashcards";
+import { Flashcard, getFlashcardsForNote, deleteFlashcard, deleteFlashcards, updateFlashcard, getFlashcardsByType, saveMultipleChoiceFlashcards, getOrCreateDeckForNote } from "@/lib/notes/flashcards";
+import { MultipleChoiceQuestion } from "@/lib/notes/multipleChoiceParser";
 import ManualFlashcardCreator from "./ManualFlashcardCreator";
+import MultipleChoiceCreator from "./MultipleChoiceCreator";
 import ImageModal from "./ImageModal";
 import StudyMode from "./StudyMode";
+import MixedStudyMode from "./MixedStudyMode";
+import StudyModeSelector from "./StudyModeSelector";
 
 interface FlashcardViewerProps {
   noteId: string;
@@ -28,7 +32,12 @@ export default function FlashcardViewer({
   const [editFront, setEditFront] = useState("");
   const [editBack, setEditBack] = useState("");
   const [showManualCreator, setShowManualCreator] = useState(false);
+  const [showMultipleChoiceCreator, setShowMultipleChoiceCreator] = useState(false);
   const [showStudyMode, setShowStudyMode] = useState(false);
+  const [showStudyModeSelector, setShowStudyModeSelector] = useState(false);
+  const [traditionalCount, setTraditionalCount] = useState(0);
+  const [multipleChoiceCount, setMultipleChoiceCount] = useState(0);
+  const [studyMode, setStudyMode] = useState<'traditional' | 'multiple_choice' | 'mixed'>('mixed');
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [modalImageUrl, setModalImageUrl] = useState("");
   const [modalImageName, setModalImageName] = useState("");
@@ -44,6 +53,11 @@ export default function FlashcardViewer({
     try {
       const cards = await getFlashcardsForNote(noteId);
       setFlashcards(cards);
+      
+      // Contar flashcards por tipo
+      const { traditional, multipleChoice } = await getFlashcardsByType(noteId);
+      setTraditionalCount(traditional.length);
+      setMultipleChoiceCount(multipleChoice.length);
     } catch (error) {
       console.error("Error cargando flashcards:", error);
     } finally {
@@ -134,6 +148,24 @@ export default function FlashcardViewer({
     onFlashcardsChange();
   };
 
+  const handleMultipleChoiceCreated = async (questions: MultipleChoiceQuestion[]) => {
+    try {
+      const deckId = await getOrCreateDeckForNote(noteId, noteTitle);
+      if (deckId) {
+        await saveMultipleChoiceFlashcards(questions, deckId);
+        loadFlashcards();
+        onFlashcardsChange();
+      }
+    } catch (error) {
+      console.error("Error creando flashcards de opción múltiple:", error);
+    }
+  };
+
+  const handleStudyModeSelected = (mode: 'traditional' | 'multiple_choice' | 'mixed') => {
+    setStudyMode(mode);
+    setShowStudyMode(true);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -172,10 +204,16 @@ export default function FlashcardViewer({
             >
               + Crear Manual
             </button>
+            <button
+              onClick={() => setShowMultipleChoiceCreator(true)}
+              className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors"
+            >
+              + Opción Múltiple
+            </button>
             {flashcards.length > 0 && (
               <>
                 <button
-                  onClick={() => setShowStudyMode(true)}
+                  onClick={() => setShowStudyModeSelector(true)}
                   className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
                 >
                   📚 Estudiar
@@ -349,12 +387,32 @@ export default function FlashcardViewer({
         onFlashcardCreated={handleManualFlashcardCreated}
       />
 
-      {/* Study Mode */}
-      <StudyMode
+      {/* Multiple Choice Creator */}
+      <MultipleChoiceCreator
+        noteId={noteId}
+        noteTitle={noteTitle}
+        isOpen={showMultipleChoiceCreator}
+        onClose={() => setShowMultipleChoiceCreator(false)}
+        onQuestionsCreated={handleMultipleChoiceCreated}
+      />
+
+      {/* Study Mode Selector */}
+      <StudyModeSelector
+        isOpen={showStudyModeSelector}
+        onClose={() => setShowStudyModeSelector(false)}
+        onModeSelected={handleStudyModeSelected}
+        traditionalCount={traditionalCount}
+        multipleChoiceCount={multipleChoiceCount}
+        title={`Flashcards: ${noteTitle}`}
+      />
+
+      {/* Mixed Study Mode */}
+      <MixedStudyMode
         flashcards={flashcards}
         isOpen={showStudyMode}
         onClose={() => setShowStudyMode(false)}
         title={`Flashcards: ${noteTitle}`}
+        studyMode={studyMode}
       />
 
       {/* Image Modal */}

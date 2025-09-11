@@ -1,53 +1,64 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabaseClient";
-import NotePreview from "./NotePreview";
-import StudyMode from "./StudyMode";
-import { getFlashcardsForNote } from "@/lib/notes/flashcards";
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { 
+  FolderIcon, 
+  DocumentTextIcon, 
+  ChevronRightIcon, 
+  ChevronDownIcon,
+  ArrowLeftIcon,
+  Bars3Icon,
+  XMarkIcon,
+  AcademicCapIcon,
+  HomeIcon,
+  ArrowLeftOnRectangleIcon,
+  BookOpenIcon
+} from '@heroicons/react/24/outline';
+import NotePreview from './NotePreview';
+import StudyComponent from './StudyComponent';
 
-type Note = {
+interface Note {
   id: string;
   title: string;
   content_md: string;
-  slug: string;
-  folder_id: string | null;
+  folder_id?: string;
+  created_at: string;
+  updated_at: string;
+  owner_id: string;
+}
+
+interface Folder {
+  id: string;
+  name: string;
   owner_id: string;
   created_at: string;
   updated_at: string;
-};
-
-type Folder = {
-  id: string;
-  name: string;
-  parent_folder_id: string | null;
-  owner_id: string;
-  sort_order: number;
-};
-
-interface MobileStudyInterfaceProps {
-  user: any;
-  initialNote?: Note | null;
+  parent_folder_id?: string;
+  color?: string;
+  sort_order?: number;
 }
 
-export default function MobileStudyInterface({ user, initialNote }: MobileStudyInterfaceProps) {
-  const [currentNote, setCurrentNote] = useState<Note | null>(initialNote || null);
+export default function MobileStudyInterface({ user }: { user: any }) {
+  const [loading, setLoading] = useState(true);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
-  const [currentFolder, setCurrentFolder] = useState<string | null>(null);
-  const [showFolders, setShowFolders] = useState(true);
-  const [studyMode, setStudyMode] = useState<"read" | "flashcards">("read");
-  const [loading, setLoading] = useState(true);
-  const [flashcards, setFlashcards] = useState<any[]>([]);
+  const [currentScreen, setCurrentScreen] = useState<'menu' | 'folder' | 'reading' | 'study'>('menu');
+  const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
+  const [currentNote, setCurrentNote] = useState<Note | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [studyMode, setStudyMode] = useState<'traditional' | 'multiple_choice' | 'mixed'>('traditional');
 
   useEffect(() => {
     if (user) {
-      loadFoldersAndNotes();
+      loadData();
     }
   }, [user]);
 
-  const loadFoldersAndNotes = async () => {
+  const loadData = async () => {
     try {
+      setLoading(true);
+      
       // Cargar carpetas
       const { data: foldersData } = await supabase
         .from("folders")
@@ -57,73 +68,27 @@ export default function MobileStudyInterface({ user, initialNote }: MobileStudyI
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true });
 
-      // Cargar notas de la carpeta actual o raíz
-      const { data: notesData } = await supabase
+      // Cargar todas las notas
+      const { data: notesData, error: notesError } = await supabase
         .from("notes")
-        .select("*")
+        .select("id, title, content_md, folder_id, created_at, updated_at, owner_id")
         .eq("owner_id", user.id)
-        .eq("folder_id", currentFolder)
-        .order("sort_order", { ascending: true })
-        .order("title", { ascending: true });
+        .order("updated_at", { ascending: false });
+
+      console.log('=== DEBUG CARGA DE DATOS ===');
+      console.log('Carpetas cargadas:', foldersData?.length || 0, foldersData);
+      console.log('Notas cargadas:', notesData?.length || 0, notesData);
+      console.log('Error notas:', notesError);
 
       setFolders(foldersData || []);
       setNotes(notesData || []);
-      // No auto-seleccionar nota en móvil: el usuario elegirá
+      
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
       setLoading(false);
     }
   };
-
-  const handleFolderSelect = async (folderId: string) => {
-    // Primero limpiar nota actual para evitar parpadeo
-    setCurrentNote(null);
-    setCurrentFolder(folderId);
-    
-    // Cargar notas de la carpeta seleccionada
-    const { data: notesData } = await supabase
-      .from("notes")
-      .select("*")
-      .eq("owner_id", user.id)
-      .eq("folder_id", folderId)
-      .order("sort_order", { ascending: true })
-      .order("title", { ascending: true });
-
-    setNotes(notesData || []);
-    // Solo después de cargar las notas, cambiar vista
-    setShowFolders(false);
-  };
-
-  const handleNoteSelect = async (note: Note) => {
-    setCurrentNote(note);
-    setShowFolders(false);
-    
-    // Cargar flashcards para esta nota
-    const noteFlashcards = await getFlashcardsForNote(note.id);
-    setFlashcards(noteFlashcards);
-  };
-
-  const handleBackToFolders = () => {
-    setShowFolders(true);
-    setCurrentFolder(null);
-  };
-
-  const handleBackToNotes = () => {
-    setCurrentNote(null);
-    setShowFolders(false);
-  };
-
-  // Cargar flashcards al entrar al modo flashcards o cambiar de nota
-  useEffect(() => {
-    const fetchFlashcards = async () => {
-      if (studyMode === "flashcards" && currentNote) {
-        const fc = await getFlashcardsForNote(currentNote.id);
-        setFlashcards(fc);
-      }
-    };
-    fetchFlashcards();
-  }, [studyMode, currentNote]);
 
   if (loading) {
     return (
@@ -136,96 +101,168 @@ export default function MobileStudyInterface({ user, initialNote }: MobileStudyI
     );
   }
 
-  // Vista de carpetas
-  if (showFolders) {
+  // PANTALLA 1: MENÚ PRINCIPAL
+  if (currentScreen === 'menu') {
     return (
       <div className="min-h-screen bg-slate-900">
         {/* Header */}
-        <div className="bg-slate-800 border-b border-slate-700 px-4 py-3">
+        <div className="bg-slate-800 px-3 py-4 sm:p-6 border-b border-slate-700">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-semibold text-white">Modo Estudio</h1>
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <BookOpenIcon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
+              <h1 className="text-lg sm:text-2xl font-bold text-white">Modo Estudio</h1>
+            </div>
             <button
-              onClick={async () => {
-                await supabase.auth.signOut();
+              onClick={() => {
                 window.location.href = "/login";
               }}
-              className="text-sm text-slate-400 hover:text-white transition-colors"
+              className="p-2 sm:p-3 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
             >
-              Salir
+              <ArrowLeftOnRectangleIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
         </div>
 
-        {/* Carpetas */}
-        <div className="p-4">
-          <h2 className="text-base font-medium text-slate-200 mb-4">Selecciona una carpeta</h2>
-          <div className="space-y-3">
-            {folders.map((folder) => (
-              <button
-                key={folder.id}
-                onClick={() => handleFolderSelect(folder.id)}
-                className="w-full p-4 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-600 transition-colors text-left"
-              >
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 text-blue-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-5l-2-2H5a2 2 0 00-2 2z" />
-                  </svg>
-                  <span className="text-slate-200 font-medium">{folder.name}</span>
-                </div>
-              </button>
-            ))}
-            
-            {/* Ocultar notas sin carpeta en móvil - solo mostrar carpetas */}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Vista de notas de una carpeta
-  if (currentFolder && !currentNote) {
-    return (
-      <div className="min-h-screen bg-slate-900">
-        {/* Header */}
-        <div className="bg-slate-800 border-b border-slate-700 px-4 py-3">
-          <div className="flex items-center">
-            <button
-              onClick={handleBackToFolders}
-              className="mr-3 p-1 text-slate-400 hover:text-white transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h1 className="text-lg font-semibold text-white">Notas</h1>
-          </div>
+        {/* Debug info */}
+        <div className="p-4 bg-red-900 text-white text-sm">
+          <p>DEBUG: Carpetas: {folders.length} | Notas: {notes.length}</p>
+          <p>User ID: {user?.id}</p>
+          <button 
+            onClick={() => {
+              console.log('Folders:', folders);
+              console.log('Notes:', notes);
+              loadData();
+            }}
+            className="mt-2 px-3 py-1 bg-blue-600 text-white rounded"
+          >
+            Recargar
+          </button>
         </div>
 
-        {/* Lista de notas */}
-        <div className="p-4">
-          {notes.length > 0 ? (
-            <div className="space-y-3">
-              {notes.map((note) => (
+        {/* Lista de carpetas y notas */}
+        <div className="flex-1 overflow-y-auto px-3 py-4 sm:p-6">
+          {folders.length === 0 && notes.length === 0 ? (
+            <div className="text-center py-12 sm:py-20">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                <FolderIcon className="w-8 h-8 sm:w-10 sm:h-10 text-slate-500" />
+              </div>
+              <h3 className="text-white text-lg sm:text-xl font-medium mb-2 sm:mb-3">No hay contenido</h3>
+              <p className="text-slate-400 text-base sm:text-lg px-2 sm:px-4">Crea carpetas y notas desde la versión de escritorio</p>
+            </div>
+          ) : (
+            <div className="space-y-2 sm:space-y-3">
+              {/* Carpetas */}
+              {folders.map((folder) => {
+                const folderNotes = notes.filter(note => note.folder_id === folder.id);
+                const isExpanded = expandedFolders.has(folder.id);
+                
+                return (
+                  <div key={folder.id}>
+                    <button
+                      onClick={() => {
+                        const newExpanded = new Set(expandedFolders);
+                        if (expandedFolders.has(folder.id)) {
+                          newExpanded.delete(folder.id);
+                        } else {
+                          newExpanded.add(folder.id);
+                        }
+                        setExpandedFolders(newExpanded);
+                      }}
+                      className="w-full flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 bg-slate-800 hover:bg-slate-700 rounded-lg sm:rounded-xl transition-colors text-left"
+                    >
+                      <FolderIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400 flex-shrink-0" />
+                      <span className="text-white text-base sm:text-lg font-medium">{folder.name}</span>
+                      <span className="text-slate-400 text-sm sm:text-base">({folderNotes.length})</span>
+                      {isExpanded ? (
+                        <ChevronDownIcon className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 ml-auto" />
+                      ) : (
+                        <ChevronRightIcon className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 ml-auto" />
+                      )}
+                    </button>
+                    
+                    {isExpanded && folderNotes.length > 0 && (
+                      <div className="ml-6 sm:ml-10 mt-2 sm:mt-3 space-y-1 sm:space-y-2">
+                        {folderNotes.map((note) => (
+                          <button
+                            key={note.id}
+                            onClick={() => {
+                              setCurrentNote(note);
+                              setCurrentScreen('reading');
+                            }}
+                            className="w-full flex items-center space-x-3 sm:space-x-4 p-2 sm:p-3 bg-slate-700 hover:bg-slate-600 rounded-lg sm:rounded-xl transition-colors text-left"
+                          >
+                            <DocumentTextIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 flex-shrink-0" />
+                            <span className="text-white text-sm sm:text-base">{note.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Notas sin carpeta */}
+              {notes.filter(note => !note.folder_id).map((note) => (
                 <button
                   key={note.id}
-                  onClick={() => handleNoteSelect(note)}
-                  className="w-full p-4 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-600 transition-colors text-left"
+                  onClick={() => {
+                    setCurrentNote(note);
+                    setCurrentScreen('reading');
+                  }}
+                  className="w-full flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 bg-slate-800 hover:bg-slate-700 rounded-lg sm:rounded-xl transition-colors text-left"
                 >
-                  <div className="flex items-center">
-                    <svg className="w-5 h-5 text-green-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span className="text-slate-200 font-medium">{note.title}</span>
-                  </div>
+                  <DocumentTextIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-400 flex-shrink-0" />
+                  <span className="text-white text-base sm:text-lg">{note.title}</span>
+                  <ChevronRightIcon className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 ml-auto" />
                 </button>
               ))}
             </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // PANTALLA 2: LECTURA DE NOTA
+  if (currentScreen === 'reading' && currentNote) {
+    return (
+      <div className="min-h-screen bg-slate-900">
+        {/* Header */}
+        <div className="bg-slate-800 px-3 py-4 sm:p-6 border-b border-slate-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
+              <button
+                onClick={() => setCurrentScreen('menu')}
+                className="p-1 sm:p-2 text-slate-400 hover:text-white rounded-lg flex-shrink-0"
+              >
+                <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+              </button>
+              <h1 className="text-base sm:text-xl font-semibold text-white truncate">{currentNote.title}</h1>
+            </div>
+            <button
+              onClick={() => setCurrentScreen('study')}
+              className="flex items-center space-x-1 sm:space-x-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 sm:px-5 sm:py-3 rounded-lg sm:rounded-xl transition-colors flex-shrink-0 ml-2 sm:ml-4"
+            >
+              <AcademicCapIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="text-sm sm:text-base font-medium">Estudiar</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Contenido de la nota */}
+        <div className="px-3 py-4 sm:p-6">
+          {currentNote.content_md && currentNote.content_md.trim() ? (
+            <NotePreview 
+              content={currentNote.content_md}
+              studyMode={true}
+            />
           ) : (
-            <div className="text-center py-12">
-              <svg className="w-12 h-12 text-slate-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <p className="text-slate-400">No hay notas en esta carpeta</p>
+            <div className="text-center py-12 sm:py-20">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                <DocumentTextIcon className="w-8 h-8 sm:w-10 sm:h-10 text-slate-500" />
+              </div>
+              <h3 className="text-white text-lg sm:text-xl font-medium mb-2 sm:mb-3">Nota vacía</h3>
+              <p className="text-slate-400 text-base sm:text-lg">Esta nota no tiene contenido aún</p>
             </div>
           )}
         </div>
@@ -233,111 +270,63 @@ export default function MobileStudyInterface({ user, initialNote }: MobileStudyI
     );
   }
 
-  // Vista de estudio de una nota
-  if (currentNote) {
+  // PANTALLA 3: ESTUDIO
+  if (currentScreen === 'study' && currentNote) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col">
+      <div className="min-h-screen bg-slate-900">
         {/* Header */}
-        <div className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex-shrink-0">
+        <div className="bg-slate-800 px-3 py-4 sm:p-6 border-b border-slate-700">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <button
-                onClick={() => {
-                  if (currentFolder) {
-                    handleBackToNotes();
-                  } else {
-                    handleBackToFolders();
-                  }
-                }}
-                className="mr-3 p-1 text-slate-400 hover:text-white transition-colors"
+                onClick={() => setCurrentScreen('reading')}
+                className="p-1 sm:p-2 text-slate-400 hover:text-white rounded-lg"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+                <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
-              <h1 className="text-base font-semibold text-white truncate">{currentNote.title}</h1>
-            </div>
-            
-            {/* Selector de modo */}
-            <div className="flex bg-slate-700 rounded-lg p-1">
-              <button
-                onClick={() => setStudyMode("read")}
-                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                  studyMode === "read" 
-                    ? "bg-blue-600 text-white" 
-                    : "text-slate-300 hover:text-white"
-                }`}
-              >
-                Leer
-              </button>
-              <button
-                onClick={() => setStudyMode("flashcards")}
-                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                  studyMode === "flashcards" 
-                    ? "bg-blue-600 text-white" 
-                    : "text-slate-300 hover:text-white"
-                }`}
-              >
-                Flashcards
-              </button>
+              <h1 className="text-base sm:text-xl font-semibold text-white">Modo Estudio</h1>
             </div>
           </div>
         </div>
 
-        {/* Contenido */}
-        <div className="flex-1 overflow-hidden">
-          {studyMode === "read" ? (
-            <div className="h-full overflow-y-auto">
-              <div className="p-4 pb-8">
-                <div className="prose prose-invert max-w-none">
-                  <NotePreview 
-                    content={currentNote.content_md} 
-                    studyMode={true}
-                    onWikiLinkClick={async (noteTitle: string) => {
-                      // Buscar nota por título
-                      const { data: targetNote } = await supabase
-                        .from("notes")
-                        .select("*")
-                        .eq("owner_id", user.id)
-                        .ilike("title", noteTitle)
-                        .limit(1)
-                        .single();
+        {/* Selector de modo */}
+        <div className="px-3 py-4 sm:p-6 border-b border-slate-700">
+          <h3 className="text-white text-base sm:text-lg font-medium mb-3 sm:mb-4">Tipo de estudio:</h3>
+          <div className="flex gap-2 sm:gap-3">
+            <button
+              onClick={() => setStudyMode('traditional')}
+              className={`px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors ${
+                studyMode === 'traditional' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
+              }`}
+            >
+              Tradicional
+            </button>
+            <button
+              onClick={() => setStudyMode('multiple_choice')}
+              className={`px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors ${
+                studyMode === 'multiple_choice' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
+              }`}
+            >
+              Múltiple Choice
+            </button>
+            <button
+              onClick={() => setStudyMode('mixed')}
+              className={`px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors ${
+                studyMode === 'mixed' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
+              }`}
+            >
+              Mixto
+            </button>
+          </div>
+        </div>
 
-                      if (targetNote) {
-                        setCurrentNote(targetNote);
-                        // Cargar flashcards de la nueva nota
-                        const fc = await getFlashcardsForNote(targetNote.id);
-                        setFlashcards(fc);
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          ) : (
-            flashcards && flashcards.length > 0 ? (
-              <StudyMode 
-                flashcards={flashcards}
-                isOpen={true}
-                onClose={() => setStudyMode("read")}
-                title={currentNote.title}
-              />
-            ) : (
-              <div className="h-full flex items-center justify-center p-8">
-                <div className="text-center">
-                  <div className="text-4xl mb-3">🃏</div>
-                  <h3 className="text-white text-lg font-semibold mb-2">No hay flashcards aún</h3>
-                  <p className="text-slate-400 text-sm mb-4">Crea tarjetas desde escritorio o usa el creador manual.</p>
-                  <button
-                    onClick={() => setStudyMode("read")}
-                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md text-sm"
-                  >
-                    Volver a Leer
-                  </button>
-                </div>
-              </div>
-            )
-          )}
+        {/* Componente de estudio */}
+        <div className="flex-1">
+          <StudyComponent 
+            noteId={currentNote.id}
+            studyMode={studyMode}
+            onBack={() => setCurrentScreen('reading')}
+          />
         </div>
       </div>
     );
@@ -347,12 +336,16 @@ export default function MobileStudyInterface({ user, initialNote }: MobileStudyI
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center">
       <div className="text-center">
-        <p className="text-slate-400">Selecciona una carpeta para comenzar a estudiar</p>
+        <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <BookOpenIcon className="w-8 h-8 text-white" />
+        </div>
+        <h3 className="text-white text-xl sm:text-2xl font-medium mb-2 sm:mb-3">Modo Estudio</h3>
+        <p className="text-slate-400 text-base sm:text-lg mb-6 sm:mb-8 px-2 sm:px-4">Interfaz optimizada para dispositivos móviles</p>
         <button
-          onClick={() => setShowFolders(true)}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+          onClick={() => setCurrentScreen('menu')}
+          className="px-6 py-3 sm:px-8 sm:py-4 bg-blue-600 hover:bg-blue-700 text-white text-base sm:text-lg rounded-lg sm:rounded-xl transition-colors font-medium"
         >
-          Ver Carpetas
+          Comenzar
         </button>
       </div>
     </div>

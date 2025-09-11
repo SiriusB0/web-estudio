@@ -98,21 +98,23 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gray-900 text-gray-300">
       {/* Header */}
       <header className="bg-gray-800/80 backdrop-blur-sm border-b border-gray-700/50">
-        <div className="max-w-2xl mx-auto px-6 py-3">
+        <div className="max-w-2xl mx-auto px-3 sm:px-6 py-3">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-medium text-gray-100">Panel de Control</h1>
-            <div className="flex items-center space-x-4">
+            <h1 className="text-base sm:text-lg font-medium text-gray-100">Panel de Control</h1>
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <a 
                 href="/editor" 
-                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-300 bg-gray-700 rounded border border-gray-600 hover:bg-gray-600 transition-colors"
+                className="inline-flex items-center px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-gray-300 bg-gray-700 rounded border border-gray-600 hover:bg-gray-600 transition-colors"
               >
-                Mi sitio de Estudio
+                <span className="hidden sm:inline">Mi sitio de Estudio</span>
+                <span className="sm:hidden">Estudio</span>
               </a>
               <button 
                 onClick={handleLogout}
-                className="text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                className="text-xs sm:text-sm font-medium text-gray-400 hover:text-white transition-colors"
               >
-                Cerrar sesión
+                <span className="hidden sm:inline">Cerrar sesión</span>
+                <span className="sm:hidden">Salir</span>
               </button>
             </div>
           </div>
@@ -120,7 +122,7 @@ export default function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-2xl mx-auto px-6 py-8">
+      <main className="max-w-2xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
         {profile ? (
           <div className="bg-gray-800 rounded-lg shadow-xl border border-gray-700 p-6">
             <div className="mb-6">

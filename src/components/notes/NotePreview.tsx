@@ -82,6 +82,7 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
 
   // Parsear contenido en secciones basadas en headers con jerarquía
   const parsedSections = useMemo(() => {
+    if (!content) return [];
     const lines = content.split('\n');
     const sections: Section[] = [];
     
@@ -214,7 +215,9 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
         return <CodeBlock code={code} language={language} />;
       }
       return (
-        <code className="bg-gray-700 text-gray-200 px-1 py-0.5 rounded text-sm font-mono">
+        <code className={`bg-gray-700 text-gray-200 px-1 py-0.5 rounded font-mono ${
+          studyMode ? 'text-sm sm:text-base px-2 sm:px-3 py-1 sm:py-1.5' : 'text-sm'
+        }`}>
           {children}
         </code>
       );
@@ -229,9 +232,9 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
 
       // Estilos optimizados para móvil cuando studyMode es true
       const mobileStyles = studyMode ? {
-        fontSize: '1.1rem',
-        lineHeight: '1.7',
-        marginBottom: '1.5rem'
+        fontSize: window.innerWidth < 640 ? '1.2rem' : '1.1rem',
+        lineHeight: window.innerWidth < 640 ? '1.8' : '1.7',
+        marginBottom: window.innerWidth < 640 ? '1.8rem' : '1.5rem'
       } : {};
 
       const handleMouseEnter = () => {
@@ -264,7 +267,9 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
           onMouseLeave={handleMouseLeave}
         >
           <p 
-            className="text-gray-300 leading-relaxed mb-4 whitespace-pre-wrap"
+            className={`text-gray-300 leading-relaxed mb-4 whitespace-pre-wrap ${
+              studyMode ? 'text-base sm:text-lg' : ''
+            }`}
             style={mobileStyles}
           >
             {children}
@@ -317,6 +322,13 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
       const lineId = `listitem-${textContent.slice(0, 50).replace(/\s+/g, '-').toLowerCase()}`;
       const hasAnnotation = annotations.some(ann => ann.lineId === lineId);
       const showButton = hoveredLineId === lineId;
+      
+      // Estilos móviles para elementos de lista
+      const listItemStyles = studyMode ? {
+        fontSize: window.innerWidth < 640 ? '1.1rem' : '1rem',
+        lineHeight: window.innerWidth < 640 ? '1.7' : '1.6',
+        marginBottom: window.innerWidth < 640 ? '0.8rem' : '0.5rem'
+      } : {};
 
       const handleMouseEnter = () => {
         if (hoverTimeout) {
@@ -340,7 +352,10 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
 
       return (
         <li 
-          className="text-gray-300 relative"
+          className={`text-gray-300 relative ${
+            studyMode ? 'text-base sm:text-lg' : ''
+          }`}
+          style={listItemStyles}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
@@ -386,15 +401,21 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
       );
     },
     blockquote: ({ children }: any) => (
-      <blockquote className="border-l-4 border-gray-600 bg-gray-800 pl-4 py-2 my-4 text-gray-300">
+      <blockquote className={`border-l-4 border-gray-600 bg-gray-800 pl-4 py-2 my-4 text-gray-300 ${
+        studyMode ? 'text-base sm:text-lg pl-3 sm:pl-4 py-3 sm:py-4 my-4 sm:my-6' : ''
+      }`}>
         {children}
       </blockquote>
     ),
     ul: ({ children }: any) => (
-      <ul className="list-disc list-inside text-gray-300 mb-3">{children}</ul>
+      <ul className={`list-disc list-inside text-gray-300 mb-3 ${
+        studyMode ? 'mb-4 sm:mb-6 space-y-1 sm:space-y-2' : ''
+      }`}>{children}</ul>
     ),
     ol: ({ children }: any) => (
-      <ol className="list-decimal list-inside text-gray-300 mb-3">{children}</ol>
+      <ol className={`list-decimal list-inside text-gray-300 mb-3 ${
+        studyMode ? 'mb-4 sm:mb-6 space-y-1 sm:space-y-2' : ''
+      }`}>{children}</ol>
     ),
     hr: ({ ...props }: any) => (
       <hr className="my-6 border-t-2 border-gray-500 opacity-60" {...props} />
@@ -444,8 +465,21 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
     
     // Usar tamaños em para modo estudio, rem para vista normal
     const currentSizes = studyMode ? headerSizesStudy : headerSizes;
-    const fontSize = currentSizes[`h${section.level}` as keyof typeof currentSizes] || '1rem';
+    let fontSize = currentSizes[`h${section.level}` as keyof typeof currentSizes] || '1rem';
     const fontWeight = headerWeights[`h${section.level}` as keyof typeof headerWeights] || '500';
+    
+    // Ajustar tamaños para móvil en modo estudio
+    if (studyMode && typeof window !== 'undefined' && window.innerWidth < 640) {
+      const mobileSizes = {
+        h1: '1.8rem',
+        h2: '1.6rem', 
+        h3: '1.4rem',
+        h4: '1.2rem',
+        h5: '1.1rem',
+        h6: '1rem'
+      };
+      fontSize = mobileSizes[`h${section.level}` as keyof typeof mobileSizes] || fontSize;
+    }
     
     const sizeStyle = { 
       fontSize: fontSize,
@@ -453,18 +487,33 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
     };
     const headerClass = `${colorClass} ${baseClass}`;
     
+    // Definir colores hover y escalas según el nivel
+    const hoverColors = {
+      1: 'hover:text-white',
+      2: 'hover:text-white', 
+      3: 'hover:text-white',
+      4: 'hover:text-[#E8E8E8]',
+      5: 'hover:text-[#C0C0C0]',
+      6: 'hover:text-[#A0A0A0]'
+    };
+    
+    const hoverScales = {
+      1: 'hover:scale-[1.08]',
+      2: 'hover:scale-[1.06]',
+      3: 'hover:scale-[1.05]',
+      4: 'hover:scale-[1.04]',
+      5: 'hover:scale-[1.03]',
+      6: 'hover:scale-[1.02]'
+    };
+    
+    const hoverColor = hoverColors[section.level as keyof typeof hoverColors] || 'hover:text-white';
+    const hoverScale = hoverScales[section.level as keyof typeof hoverScales] || 'hover:scale-[1.02]';
+    
     const headerProps = {
-      className: `${headerClass} cursor-pointer hover:text-blue-400 transition-colors duration-200 flex items-center gap-2 select-none`,
+      className: `${headerClass} ${hoverColor} ${hoverScale} cursor-pointer transition-all duration-300 ease-out select-none transform-gpu`,
       style: sizeStyle,
       onClick: () => toggleSection(section.id),
-      children: (
-        <>
-          <span className="text-gray-500 text-sm">
-            {isCollapsed ? '▶' : '▼'}
-          </span>
-          {section.title}
-        </>
-      )
+      children: section.title
     };
     
     return (
@@ -479,7 +528,7 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
         {!isCollapsed && (
           <>
             {hasContent && (
-              <div className="ml-4">
+              <div className={`ml-4 ${studyMode ? 'ml-2 sm:ml-4' : ''}`}>
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeRaw]}
@@ -593,7 +642,7 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
   };
 
   return (
-    <div className="p-6 max-w-full overflow-hidden">
+    <div className={`${studyMode ? 'px-2 py-4 sm:px-6 sm:py-6' : 'p-6'} max-w-full overflow-hidden`}>
       {/* Contador de anotaciones en el header */}
       {annotations.length > 0 && (
         <div className="mb-4 text-sm text-gray-400">

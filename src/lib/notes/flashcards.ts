@@ -59,6 +59,11 @@ export interface Flashcard {
   front_image_name?: string;
   back_image_name?: string;
   created_at?: string;
+  // Campos para flashcards de opción múltiple
+  type?: 'traditional' | 'multiple_choice';
+  question?: string;
+  options?: string; // JSON string de las opciones
+  correct_answers?: string; // JSON string de las respuestas correctas
 }
 
 export interface Deck {
@@ -136,7 +141,11 @@ export async function saveFlashcard(flashcard: Flashcard, deckId: string): Promi
         front_image_url: flashcard.front_image_url,
         back_image_url: flashcard.back_image_url,
         front_image_name: flashcard.front_image_name,
-        back_image_name: flashcard.back_image_name
+        back_image_name: flashcard.back_image_name,
+        type: flashcard.type || 'traditional',
+        question: flashcard.question,
+        options: flashcard.options,
+        correct_answers: flashcard.correct_answers
       });
 
     if (error) throw error;
@@ -163,7 +172,11 @@ export async function getFlashcardsForNote(noteId: string): Promise<Flashcard[]>
             back_image_url,
             front_image_name,
             back_image_name,
-            created_at
+            created_at,
+            type,
+            question,
+            options,
+            correct_answers
           )
         )
       `)
@@ -363,5 +376,126 @@ export async function countFlashcardsForNote(noteId: string): Promise<number> {
   } catch (error) {
     console.error('Error contando flashcards:', error);
     return 0;
+  }
+}
+
+// Contar flashcards por tipo para una nota
+export async function countFlashcardsByType(noteId: string): Promise<{
+  traditional: number;
+  multipleChoice: number;
+  total: number;
+}> {
+  try {
+    const { data } = await supabase
+      .from('note_deck_links')
+      .select(`
+        decks!inner (
+          cards (
+            id,
+            type
+          )
+        )
+      `)
+      .eq('note_id', noteId);
+
+    if (!data || data.length === 0) {
+      return { traditional: 0, multipleChoice: 0, total: 0 };
+    }
+
+    let traditional = 0;
+    let multipleChoice = 0;
+
+    data.forEach((link: any) => {
+      if (link.decks && Array.isArray(link.decks.cards)) {
+        link.decks.cards.forEach((card: any) => {
+          if (card.type === 'multiple_choice') {
+            multipleChoice++;
+          } else {
+            traditional++;
+          }
+        });
+      }
+    });
+
+    return {
+      traditional,
+      multipleChoice,
+      total: traditional + multipleChoice
+    };
+  } catch (error) {
+    console.error('Error contando flashcards por tipo:', error);
+    return { traditional: 0, multipleChoice: 0, total: 0 };
+  }
+}
+
+// Importar tipos de múltiple choice
+import { MultipleChoiceQuestion, MultipleChoiceOption } from './multipleChoiceParser';
+
+// Guardar flashcards de opción múltiple en lote
+export async function saveMultipleChoiceFlashcards(
+  questions: MultipleChoiceQuestion[], 
+  deckId: string
+): Promise<boolean> {
+  try {
+    const flashcards = questions.map(question => ({
+      deck_id: deckId,
+      front: question.question,
+      back: `Respuesta${question.correctAnswers.length > 1 ? 's' : ''}: ${question.correctAnswers.join(', ')}`,
+      type: 'multiple_choice' as const,
+      question: question.question,
+      options: JSON.stringify(question.options),
+      correct_answers: JSON.stringify(question.correctAnswers)
+    }));
+
+    const { error } = await supabase
+      .from('cards')
+      .insert(flashcards);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error('Error guardando flashcards de opción múltiple:', error);
+    return false;
+  }
+}
+
+// Convertir flashcard de BD a MultipleChoiceQuestion
+export function flashcardToMultipleChoice(flashcard: Flashcard): MultipleChoiceQuestion | null {
+  if (flashcard.type !== 'multiple_choice' || !flashcard.options || !flashcard.correct_answers) {
+    return null;
+  }
+
+  try {
+    const options: MultipleChoiceOption[] = JSON.parse(flashcard.options);
+    const correctAnswers: string[] = JSON.parse(flashcard.correct_answers);
+
+    return {
+      id: flashcard.id || `mc_${Date.now()}`,
+      question: flashcard.question || flashcard.front,
+      options,
+      correctAnswers,
+      questionNumber: 1 // Se puede ajustar según el contexto
+    };
+  } catch (error) {
+    console.error('Error parseando flashcard de opción múltiple:', error);
+    return null;
+  }
+}
+
+// Obtener flashcards separadas por tipo
+export async function getFlashcardsByType(noteId: string): Promise<{
+  traditional: Flashcard[];
+  multipleChoice: Flashcard[];
+}> {
+  try {
+    const allFlashcards = await getFlashcardsForNote(noteId);
+    
+    const traditional = allFlashcards.filter(card => card.type !== 'multiple_choice');
+    const multipleChoice = allFlashcards.filter(card => card.type === 'multiple_choice');
+
+    return { traditional, multipleChoice };
+  } catch (error) {
+    console.error('Error obteniendo flashcards por tipo:', error);
+    return { traditional: [], multipleChoice: [] };
   }
 }

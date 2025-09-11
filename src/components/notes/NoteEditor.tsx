@@ -16,7 +16,8 @@ import MarkdownToolbar from "./MarkdownToolbar";
 import FlashcardViewer from "./FlashcardViewer";
 import DocumentOutline from "./DocumentOutline";
 import { supabase } from "@/lib/supabaseClient";
-import { Flashcard, getOrCreateDeckForNote, saveFlashcard, countFlashcardsForNote } from "@/lib/notes/flashcards";
+import { Flashcard, getOrCreateDeckForNote, saveFlashcard, countFlashcardsForNote, countFlashcardsByType } from "@/lib/notes/flashcards";
+import StudyModeSelector from "./StudyModeSelector";
 
 interface NoteEditorProps {
   initialContent: string;
@@ -75,22 +76,25 @@ export default function NoteEditor({
     
     console.log(`[FOLD CALC] Calculando rango para encabezado nivel ${headerLevel} en línea ${startLineNum}: "${headerText}"`);
     
-    // Buscar el final de la sección
+    // Buscar el final de la sección - debe incluir headers de menor jerarquía
     for (let lineNum = startLineNum + 1; lineNum <= doc.lines; lineNum++) {
       try {
         const currentLine = doc.line(lineNum);
         const currentText = currentLine.text.trim();
         
+        // Solo detener en headers del mismo nivel o superior (menor número de #)
         if (currentText.startsWith('#')) {
           const currentHeaderMatch = currentText.match(/^(#{1,6})\s/);
           if (currentHeaderMatch) {
             const currentLevel = currentHeaderMatch[1].length;
             console.log(`[FOLD CALC] Encontrado encabezado nivel ${currentLevel} en línea ${lineNum}`);
+            // Solo detener si es del mismo nivel o superior (menor jerarquía)
             if (currentLevel <= headerLevel) {
               endLineNum = lineNum - 1;
               console.log(`[FOLD CALC] Sección termina en línea ${endLineNum}`);
               break;
             }
+            // Si es de menor jerarquía (más #), continuar incluyéndolo
           }
         }
       } catch (e) {
@@ -105,8 +109,8 @@ export default function NoteEditor({
       return null;
     }
     
-    // Calcular posiciones exactas
-    const foldStart = headerLine.to; // Final de la línea del encabezado
+    // Calcular posiciones exactas - incluir salto de línea después del header
+    const foldStart = headerLine.to + 1; // Incluir el salto de línea después del header
     const lastLine = doc.line(endLineNum);
     const foldEnd = lastLine.to;
     
@@ -124,8 +128,9 @@ export default function NoteEditor({
     const folded = foldedRanges(view.state);
     let found = false;
     
-    folded.between(line.from, line.to, (from: number, to: number) => {
-      if (from >= line.from && from <= line.to) {
+    // Verificar si hay un rango plegado que comience justo después de esta línea
+    folded.between(line.to, line.to + 1, (from: number, to: number) => {
+      if (from === line.to + 1 || from === line.to) {
         found = true;
       }
     });
@@ -133,38 +138,46 @@ export default function NoteEditor({
     return found;
   }, []);
 
-  // Función para plegar/desplegar sección con cálculo manual de rangos
-  const toggleSection = useCallback((headerLineNumber: number, headerLevel: number) => {
-    const editor = editorRef.current?.view;
-    if (!editor) return;
+  // Función para manejar el plegado/desplegado de headers
+  const toggleHeaderFold = useCallback(async (headerLineNumber: number, level: number) => {
+    if (!editorRef.current?.view) return;
     
+    const editor = editorRef.current.view;
     const isFolded = isLineFolded(editor, headerLineNumber);
     
-    console.log(`[TOGGLE] Clic en encabezado línea ${headerLineNumber} (nivel ${headerLevel}), isFolded: ${isFolded}`);
+    console.log(`[TOGGLE] Clic en encabezado línea ${headerLineNumber} (nivel ${level}), isFolded: ${isFolded}`);
     
     try {
       if (isFolded) {
-        // Desplegar: buscar el rango plegado y desplegarlo
+        // Desplegar: buscar el rango plegado que comience después de esta línea
         const folded = foldedRanges(editor.state);
         const doc = editor.state.doc;
         const headerLine = doc.line(headerLineNumber + 1);
         
-        folded.between(headerLine.from, headerLine.to, (from: number, to: number) => {
-          console.log(`[TOGGLE] Desplegando rango ${from} -> ${to}`);
-          editor.dispatch({
-            effects: unfoldEffect.of({ from, to })
-          });
+        let foundRange = false;
+        folded.between(headerLine.to, headerLine.to + 2, (from: number, to: number) => {
+          if (from === headerLine.to + 1 || from === headerLine.to) {
+            console.log(`[TOGGLE] Desplegando rango ${from} -> ${to}`);
+            editor.dispatch({
+              effects: unfoldEffect.of({ from, to })
+            });
+            foundRange = true;
+          }
         });
+        
+        if (!foundRange) {
+          console.log(`[TOGGLE] No se encontró rango plegado para desplegar`);
+        }
       } else {
         // Plegar: calcular el rango y plegarlo
         const foldRange = calculateFoldRange(editor, headerLineNumber);
-        if (foldRange) {
+        if (foldRange && foldRange.from < foldRange.to) {
           console.log(`[TOGGLE] Plegando rango ${foldRange.from} -> ${foldRange.to}`);
           editor.dispatch({
             effects: foldEffect.of(foldRange)
           });
         } else {
-          console.log(`[TOGGLE] No hay contenido para plegar`);
+          console.log(`[TOGGLE] No hay contenido válido para plegar`);
         }
       }
     } catch (error) {
@@ -172,58 +185,142 @@ export default function NoteEditor({
     }
   }, [isLineFolded, calculateFoldRange]);
 
-  // Widget personalizado para flecha de plegado
-  class HeaderFoldWidget extends WidgetType {
+  // useEffect para manejar clicks en headers
+  useEffect(() => {
+    const setupClickHandler = () => {
+      if (editorRef.current?.view) {
+        const editor = editorRef.current.view;
+        
+        // Configurar event listeners para clicks en headers
+        const handleClick = (event: MouseEvent) => {
+          const target = event.target as HTMLElement;
+          
+          // Buscar la línea que contiene el header
+          const line = target.closest('.cm-line');
+          
+          if (line) {
+            // Verificar si es un header buscando el texto
+            const lineText = line.textContent || '';
+            const headerMatch = lineText.match(/^(#{1,6})\s+(.+)/);
+            
+            if (headerMatch) {
+              // Método más robusto: usar coordenadas para encontrar la línea exacta
+              const rect = line.getBoundingClientRect();
+              const editorRect = editor.dom.getBoundingClientRect();
+              const relativeY = rect.top - editorRect.top + editor.scrollDOM.scrollTop;
+              
+              // Usar posAtCoords para obtener la posición exacta en el documento
+              const pos = editor.posAtCoords({ x: rect.left, y: rect.top });
+              
+              if (pos !== null) {
+                const doc = editor.state.doc;
+                const docLine = doc.lineAt(pos);
+                const lineIndex = docLine.number - 1; // Convertir a 0-indexed
+                
+                // Verificar que realmente sea un header en el documento
+                const docLineText = docLine.text;
+                if (docLineText.match(/^#{1,6}\s/)) {
+                  const level = docLineText.match(/^(#{1,6})\s/)?.[1].length || 0;
+                  
+                  event.preventDefault();
+                  event.stopPropagation();
+                  
+                  console.log(`[CLICK] Header nivel ${level} en línea ${lineIndex}: "${docLineText}"`);
+                  console.log(`[CLICK] Posición en documento: ${pos}`);
+                  toggleHeaderFold(lineIndex, level);
+                }
+              } else {
+                // Fallback al método anterior si posAtCoords falla
+                const doc = editor.state.doc;
+                const allLines = Array.from(editor.dom.querySelectorAll('.cm-line'));
+                const lineIndex = allLines.indexOf(line as Element);
+                
+                if (lineIndex >= 0 && lineIndex < doc.lines) {
+                  const level = headerMatch[1].length;
+                  const docLine = doc.line(lineIndex + 1); // +1 porque doc.line es 1-indexed
+                  
+                  // Verificar que realmente sea un header en el documento
+                  const docLineText = docLine.text;
+                  if (docLineText.match(/^#{1,6}\s/)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    console.log(`[CLICK FALLBACK] Header nivel ${level} en línea ${lineIndex}: "${headerMatch[2]}"`);
+                    console.log(`[CLICK FALLBACK] Texto del documento: "${docLineText}"`);
+                    toggleHeaderFold(lineIndex, level);
+                  }
+                }
+              }
+            }
+          }
+        };
+        
+        editor.dom.addEventListener('click', handleClick, true); // Usar capture para interceptar antes
+        
+        return () => {
+          editor.dom.removeEventListener('click', handleClick, true);
+        };
+      }
+    };
+
+    // Configurar con un delay para asegurar que el DOM esté listo
+    const timeout = setTimeout(setupClickHandler, 200);
+    
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [toggleHeaderFold]); // Reconfigurar cuando cambie toggleHeaderFold
+
+  // Widget para crear nota desde header
+  class AddNoteWidget extends WidgetType {
     constructor(
-      private level: number, 
-      private lineNumber: number, 
-      private isFolded: boolean,
-      private onToggle: (lineNumber: number, level: number) => void
+      private lineNumber: number,
+      private onCreateNote: (lineNumber: number) => void
     ) {
       super();
     }
 
     toDOM() {
       const span = document.createElement("span");
-      span.className = "header-fold-arrow";
-      span.textContent = this.isFolded ? "▶" : "▼";
+      span.className = "inline-add-note-btn";
+      span.textContent = "+";
       span.style.cssText = `
         cursor: pointer;
-        font-size: 16px;
-        color: rgba(171, 178, 191, 0.8);
-        margin-right: 8px;
-        font-weight: bold;
-        display: inline-block;
+        font-size: 14px;
+        color: white;
+        background: rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 50%;
         width: 20px;
-        text-align: center;
-        user-select: none;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 8px;
+        opacity: 0;
         transition: all 0.2s ease;
+        vertical-align: top;
       `;
       
       span.onmouseenter = () => {
-        span.style.transform = "scale(1.2)";
-        span.style.color = "rgba(171, 178, 191, 1)";
+        span.style.background = "rgba(255, 255, 255, 0.3)";
       };
       
       span.onmouseleave = () => {
-        span.style.transform = "scale(1)";
-        span.style.color = "rgba(171, 178, 191, 0.8)";
+        span.style.background = "rgba(255, 255, 255, 0.2)";
       };
       
       span.onclick = (e) => {
-        console.log("Flecha clickeada!", { level: this.level, lineNumber: this.lineNumber, folded: this.isFolded });
         e.preventDefault();
         e.stopPropagation();
-        this.onToggle(this.lineNumber, this.level);
+        this.onCreateNote(this.lineNumber);
       };
       
       return span;
     }
 
-    eq(other: HeaderFoldWidget) {
-      return this.level === other.level && 
-             this.lineNumber === other.lineNumber && 
-             this.isFolded === other.isFolded;
+    eq(other: AddNoteWidget) {
+      return this.lineNumber === other.lineNumber;
     }
   }
 
@@ -268,17 +365,18 @@ export default function NoteEditor({
           const indentLevel = Math.max(0, level - 1);
           const indentPixels = indentLevel * 16; // 16px por nivel
           
-          // Decoración de línea para el color del header + indentación
+          // Decoración de línea para el color del header + indentación + clickeable
           decorations.push(
             Decoration.line({ 
               attributes: { 
-                class: `cm-h${level}`,
-                style: `padding-left: ${indentPixels}px;`
-              } 
+                class: `cm-h${level} header-clickable`,
+                style: `margin-left: ${indentPixels}px; cursor: pointer;`,
+                'data-line': lineNum - 1, // 0-indexed para compatibilidad
+                'data-level': level
+              }
             }).range(line.from)
           );
           
-          // Widget de flecha de plegado después de los símbolos #
           // Detectar estado de plegado usando la API nativa de CodeMirror
           const folded = foldedRanges(view.state);
           let isFolded = false;
@@ -288,14 +386,6 @@ export default function NoteEditor({
               isFolded = true;
             }
           });
-          
-          const hashEnd = line.from + hashSymbols.length;
-          decorations.push(
-            Decoration.widget({
-              widget: new HeaderFoldWidget(level, line.number - 1, isFolded, toggleSection),
-              side: 1
-            }).range(hashEnd)
-          );
         }
       }
       
@@ -658,7 +748,10 @@ export default function NoteEditor({
   const [pendingQuestion, setPendingQuestion] = useState<string>("");
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [flashcardCount, setFlashcardCount] = useState<number>(0);
+  const [traditionalCount, setTraditionalCount] = useState<number>(0);
+  const [multipleChoiceCount, setMultipleChoiceCount] = useState<number>(0);
   const [showFlashcardViewer, setShowFlashcardViewer] = useState(false);
+  const [showStudyModeSelector, setShowStudyModeSelector] = useState(false);
   const [showOutline, setShowOutline] = useState(false);
   const [showEmojiDropdown, setShowEmojiDropdown] = useState(false);
   const [showStructureDropdown, setShowStructureDropdown] = useState(false);
@@ -693,8 +786,10 @@ export default function NoteEditor({
   const loadFlashcardCount = async () => {
     if (!noteId) return;
     try {
-      const count = await countFlashcardsForNote(noteId);
-      setFlashcardCount(count);
+      const counts = await countFlashcardsByType(noteId);
+      setFlashcardCount(counts.total);
+      setTraditionalCount(counts.traditional);
+      setMultipleChoiceCount(counts.multipleChoice);
     } catch (error) {
       console.error("Error cargando contador de flashcards:", error);
     }
@@ -1533,11 +1628,7 @@ export default function NoteEditor({
                 Ver
               </button>
               <button
-                onClick={() => {
-                  if (noteId) {
-                    window.location.href = `/study/${noteId}`;
-                  }
-                }}
+                onClick={() => setShowStudyModeSelector(true)}
                 title="Estudiar flashcards"
                 className="px-2 py-1 text-xs bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
               >
@@ -1591,7 +1682,20 @@ export default function NoteEditor({
                     colorTextPlugin,
                     colorKeymap,
                     codeFolding({
-                      placeholderText: "..."
+                      placeholderText: "...",
+                      placeholderDOM: () => {
+                        const span = document.createElement("span");
+                        span.textContent = "...";
+                        span.style.cssText = `
+                          color: #666;
+                          font-style: italic;
+                          background: transparent;
+                          border: none;
+                          padding: 0;
+                          margin: 0;
+                        `;
+                        return span;
+                      }
                     })
                   ]}
                   basicSetup={{
@@ -1641,7 +1745,22 @@ export default function NoteEditor({
                   lineNumbers(),
                   markdown(),
                   EditorView.lineWrapping,
-                  codeFolding(),
+                  codeFolding({
+                    placeholderText: "...",
+                    placeholderDOM: () => {
+                      const span = document.createElement("span");
+                      span.textContent = "...";
+                      span.style.cssText = `
+                        color: #666;
+                        font-style: italic;
+                        background: transparent;
+                        border: none;
+                        padding: 0;
+                        margin: 0;
+                      `;
+                      return span;
+                    }
+                  }),
                   scrollPastEnd(),
                   colorKeymap,
                   syntaxHighlighting(customSyntaxHighlighting),
@@ -1691,6 +1810,27 @@ export default function NoteEditor({
             onFlashcardsChange={loadFlashcardCount}
           />
         )}
+
+        {/* Selector de modo de estudio */}
+        {showStudyModeSelector && noteId && (
+          <StudyModeSelector
+            isOpen={showStudyModeSelector}
+            onClose={() => setShowStudyModeSelector(false)}
+            onModeSelected={(mode) => {
+              setShowStudyModeSelector(false);
+              if (mode === 'traditional') {
+                window.location.href = `/study/${noteId}?mode=traditional`;
+              } else if (mode === 'multiple_choice') {
+                window.location.href = `/study/${noteId}?mode=multiple_choice`;
+              } else {
+                window.location.href = `/study/${noteId}?mode=mixed`;
+              }
+            }}
+            traditionalCount={traditionalCount}
+            multipleChoiceCount={multipleChoiceCount}
+            title={noteTitle || 'Flashcards'}
+          />
+        )}
       </div>
 
       {/* Document Outline */}
@@ -1701,6 +1841,7 @@ export default function NoteEditor({
           onToggle={() => setShowOutline(false)}
           buttonRef={outlineButtonRef}
           onNavigate={(line) => {
+
             if (editorRef.current?.view) {
               const doc = editorRef.current.view.state.doc;
               const lineObj = doc.line(line);

@@ -20,12 +20,12 @@
  */
 
 export const headerColors = {
-  h1: '#39FF14', // Verde lima brillante
-  h2: '#00FFA3', // Verde agua
-  h3: '#00FFD5', // Turquesa suave
-  h4: '#00BFAF', // Verde azulado
-  h5: '#007F7F', // Verde oscuro frío
-  h6: '#004D4D', // Verde profundo
+  h1: '#F5F5F5', // Blanco hueso
+  h2: '#B0B0B0', // Gris claro
+  h3: '#D0D0D0', // Gris medio claro
+  h4: '#9A9A9A', // Gris medio
+  h5: '#6E6E6E', // Gris oscuro
+  h6: '#3D3D3D', // Gris muy oscuro
 };
 
 /**
@@ -33,12 +33,12 @@ export const headerColors = {
  * Cambiar aquí afecta editor y modo estudio automáticamente.
  */
 export const headerSizes = {
-  h1: '2.5rem',   // 40px aprox.
-  h2: '2rem',     // 32px aprox.
-  h3: '1.75rem',  // 28px aprox.
-  h4: '1.5rem',   // 24px aprox.
-  h5: '1.25rem',  // 20px aprox.
-  h6: '1.1rem',   // 17.6px aprox.
+  h1: '2.2rem',   // 35.2px aprox.
+  h2: '1.9rem',   // 30.4px aprox.
+  h3: '1.6rem',   // 25.6px aprox.
+  h4: '1.3rem',   // 20.8px aprox.
+  h5: '1.1rem',   // 17.6px aprox.
+  h6: '0.9rem',   // 14.4px aprox.
 };
 
 /**
@@ -67,10 +67,10 @@ export const headerWeights = {
 };
 
 export const headerTextClasses: Record<number, string> = {
-  1: 'text-[#39FF14]', // H1 - Verde lima brillante
-  2: 'text-[#00FFA3]', // H2 - Verde agua
-  3: 'text-[#00FFD5]', // H3 - Turquesa suave
-  4: 'text-[#00BFAF]', // H4 - Verde azulado
-  5: 'text-[#007F7F]', // H5 - Verde oscuro frío
-  6: 'text-[#004D4D]', // H6 - Verde profundo
+  1: 'text-[#F5F5F5]', // H1 - Blanco hueso
+  2: 'text-[#B0B0B0]', // H2 - Gris claro
+  3: 'text-[#D0D0D0]', // H3 - Gris medio claro
+  4: 'text-[#9A9A9A]', // H4 - Gris medio
+  5: 'text-[#6E6E6E]', // H5 - Gris oscuro
+  6: 'text-[#3D3D3D]', // H6 - Gris muy oscuro
 };
