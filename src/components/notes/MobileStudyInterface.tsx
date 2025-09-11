@@ -104,7 +104,7 @@ export default function MobileStudyInterface({ user }: { user: any }) {
   // PANTALLA 1: MENÚ PRINCIPAL
   if (currentScreen === 'menu') {
     return (
-      <div className="min-h-screen bg-slate-900">
+      <div className="min-h-screen bg-slate-900 max-w-full overflow-x-hidden">
         {/* Header */}
         <div className="bg-slate-800 px-3 py-4 sm:p-6 border-b border-slate-700">
           <div className="flex items-center justify-between">
@@ -123,24 +123,9 @@ export default function MobileStudyInterface({ user }: { user: any }) {
           </div>
         </div>
 
-        {/* Debug info */}
-        <div className="p-4 bg-red-900 text-white text-sm">
-          <p>DEBUG: Carpetas: {folders.length} | Notas: {notes.length}</p>
-          <p>User ID: {user?.id}</p>
-          <button 
-            onClick={() => {
-              console.log('Folders:', folders);
-              console.log('Notes:', notes);
-              loadData();
-            }}
-            className="mt-2 px-3 py-1 bg-blue-600 text-white rounded"
-          >
-            Recargar
-          </button>
-        </div>
 
         {/* Lista de carpetas y notas */}
-        <div className="flex-1 overflow-y-auto px-3 py-4 sm:p-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 sm:p-6">
           {folders.length === 0 && notes.length === 0 ? (
             <div className="text-center py-12 sm:py-20">
               <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
@@ -168,10 +153,10 @@ export default function MobileStudyInterface({ user }: { user: any }) {
                         }
                         setExpandedFolders(newExpanded);
                       }}
-                      className="w-full flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 bg-slate-800 hover:bg-slate-700 rounded-lg sm:rounded-xl transition-colors text-left"
+                      className="w-full flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 bg-slate-800 hover:bg-slate-700 rounded-lg sm:rounded-xl transition-colors text-left max-w-full overflow-hidden"
                     >
                       <FolderIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400 flex-shrink-0" />
-                      <span className="text-white text-base sm:text-lg font-medium">{folder.name}</span>
+                      <span className="text-white text-base sm:text-lg font-medium truncate flex-1 min-w-0">{folder.name}</span>
                       <span className="text-slate-400 text-sm sm:text-base">({folderNotes.length})</span>
                       {isExpanded ? (
                         <ChevronDownIcon className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 ml-auto" />
@@ -189,10 +174,10 @@ export default function MobileStudyInterface({ user }: { user: any }) {
                               setCurrentNote(note);
                               setCurrentScreen('reading');
                             }}
-                            className="w-full flex items-center space-x-3 sm:space-x-4 p-2 sm:p-3 bg-slate-700 hover:bg-slate-600 rounded-lg sm:rounded-xl transition-colors text-left"
+                            className="w-full flex items-center space-x-3 sm:space-x-4 p-2 sm:p-3 bg-slate-700 hover:bg-slate-600 rounded-lg sm:rounded-xl transition-colors text-left max-w-full overflow-hidden"
                           >
                             <DocumentTextIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 flex-shrink-0" />
-                            <span className="text-white text-sm sm:text-base">{note.title}</span>
+                            <span className="text-white text-sm sm:text-base truncate flex-1 min-w-0">{note.title}</span>
                           </button>
                         ))}
                       </div>
@@ -209,10 +194,10 @@ export default function MobileStudyInterface({ user }: { user: any }) {
                     setCurrentNote(note);
                     setCurrentScreen('reading');
                   }}
-                  className="w-full flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 bg-slate-800 hover:bg-slate-700 rounded-lg sm:rounded-xl transition-colors text-left"
+                  className="w-full flex items-center space-x-3 sm:space-x-4 p-3 sm:p-4 bg-slate-800 hover:bg-slate-700 rounded-lg sm:rounded-xl transition-colors text-left max-w-full overflow-hidden"
                 >
                   <DocumentTextIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-400 flex-shrink-0" />
-                  <span className="text-white text-base sm:text-lg">{note.title}</span>
+                  <span className="text-white text-base sm:text-lg truncate flex-1 min-w-0">{note.title}</span>
                   <ChevronRightIcon className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 ml-auto" />
                 </button>
               ))}
@@ -226,7 +211,7 @@ export default function MobileStudyInterface({ user }: { user: any }) {
   // PANTALLA 2: LECTURA DE NOTA
   if (currentScreen === 'reading' && currentNote) {
     return (
-      <div className="min-h-screen bg-slate-900">
+      <div className="min-h-screen bg-slate-900 max-w-full overflow-x-hidden">
         {/* Header */}
         <div className="bg-slate-800 px-3 py-4 sm:p-6 border-b border-slate-700">
           <div className="flex items-center justify-between">
@@ -237,7 +222,7 @@ export default function MobileStudyInterface({ user }: { user: any }) {
               >
                 <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
-              <h1 className="text-base sm:text-xl font-semibold text-white truncate">{currentNote.title}</h1>
+              <h1 className="text-base sm:text-xl font-semibold text-white truncate flex-1 min-w-0">{currentNote.title}</h1>
             </div>
             <button
               onClick={() => setCurrentScreen('study')}
@@ -250,7 +235,7 @@ export default function MobileStudyInterface({ user }: { user: any }) {
         </div>
 
         {/* Contenido de la nota */}
-        <div className="px-3 py-4 sm:p-6">
+        <div className="px-3 py-4 sm:p-6 max-w-full overflow-x-hidden">
           {currentNote.content_md && currentNote.content_md.trim() ? (
             <NotePreview 
               content={currentNote.content_md}
@@ -273,7 +258,7 @@ export default function MobileStudyInterface({ user }: { user: any }) {
   // PANTALLA 3: ESTUDIO
   if (currentScreen === 'study' && currentNote) {
     return (
-      <div className="min-h-screen bg-slate-900">
+      <div className="min-h-screen bg-slate-900 max-w-full overflow-x-hidden">
         {/* Header */}
         <div className="bg-slate-800 px-3 py-4 sm:p-6 border-b border-slate-700">
           <div className="flex items-center justify-between">
@@ -292,10 +277,10 @@ export default function MobileStudyInterface({ user }: { user: any }) {
         {/* Selector de modo */}
         <div className="px-3 py-4 sm:p-6 border-b border-slate-700">
           <h3 className="text-white text-base sm:text-lg font-medium mb-3 sm:mb-4">Tipo de estudio:</h3>
-          <div className="flex gap-2 sm:gap-3">
+          <div className="flex gap-2 sm:gap-3 flex-wrap">
             <button
               onClick={() => setStudyMode('traditional')}
-              className={`px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors ${
+              className={`px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors flex-shrink-0 ${
                 studyMode === 'traditional' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
               }`}
             >
@@ -303,7 +288,7 @@ export default function MobileStudyInterface({ user }: { user: any }) {
             </button>
             <button
               onClick={() => setStudyMode('multiple_choice')}
-              className={`px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors ${
+              className={`px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors flex-shrink-0 ${
                 studyMode === 'multiple_choice' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
               }`}
             >
@@ -311,7 +296,7 @@ export default function MobileStudyInterface({ user }: { user: any }) {
             </button>
             <button
               onClick={() => setStudyMode('mixed')}
-              className={`px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors ${
+              className={`px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors flex-shrink-0 ${
                 studyMode === 'mixed' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
               }`}
             >
@@ -321,7 +306,7 @@ export default function MobileStudyInterface({ user }: { user: any }) {
         </div>
 
         {/* Componente de estudio */}
-        <div className="flex-1">
+        <div className="flex-1 max-w-full overflow-x-hidden">
           <StudyComponent 
             noteId={currentNote.id}
             studyMode={studyMode}
@@ -334,13 +319,13 @@ export default function MobileStudyInterface({ user }: { user: any }) {
 
   // Estado por defecto
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center max-w-full overflow-x-hidden px-4">
       <div className="text-center">
         <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
           <BookOpenIcon className="w-8 h-8 text-white" />
         </div>
         <h3 className="text-white text-xl sm:text-2xl font-medium mb-2 sm:mb-3">Modo Estudio</h3>
-        <p className="text-slate-400 text-base sm:text-lg mb-6 sm:mb-8 px-2 sm:px-4">Interfaz optimizada para dispositivos móviles</p>
+        <p className="text-slate-400 text-base sm:text-lg mb-6 sm:mb-8 px-2 sm:px-4 max-w-sm mx-auto">Interfaz optimizada para dispositivos móviles</p>
         <button
           onClick={() => setCurrentScreen('menu')}
           className="px-6 py-3 sm:px-8 sm:py-4 bg-blue-600 hover:bg-blue-700 text-white text-base sm:text-lg rounded-lg sm:rounded-xl transition-colors font-medium"
