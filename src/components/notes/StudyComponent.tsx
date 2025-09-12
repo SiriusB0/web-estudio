@@ -27,6 +27,7 @@ export default function StudyComponent({ noteId, studyMode, onBack }: StudyCompo
       setError(null);
       
       const allFlashcards = await getFlashcardsForNote(noteId);
+      console.log('Todas las flashcards cargadas:', allFlashcards);
       
       // Filtrar según el modo de estudio
       let filteredCards: Flashcard[] = [];
@@ -39,6 +40,16 @@ export default function StudyComponent({ noteId, studyMode, onBack }: StudyCompo
         // mixed - todas las flashcards
         filteredCards = allFlashcards;
       }
+      
+      console.log(`Modo: ${studyMode}, Flashcards filtradas:`, filteredCards);
+      console.log(`Total después del filtro: ${filteredCards.length}`);
+      
+      // Ordenar por created_at para asegurar orden consistente
+      filteredCards.sort((a, b) => {
+        const dateA = new Date(a.created_at || '').getTime();
+        const dateB = new Date(b.created_at || '').getTime();
+        return dateA - dateB;
+      });
       
       setFlashcards(filteredCards);
     } catch (err) {

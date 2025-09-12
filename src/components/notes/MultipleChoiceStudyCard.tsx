@@ -12,16 +12,11 @@ interface MultipleChoiceStudyCardProps {
   onNext: () => void;
 }
 
-export default function MultipleChoiceStudyCard({
-  flashcard,
-  questionNumber,
-  totalQuestions,
-  onAnswer,
-  onNext
-}: MultipleChoiceStudyCardProps) {
+export default function MultipleChoiceStudyCard({ flashcard, questionNumber, totalQuestions, onAnswer, onNext }: MultipleChoiceStudyCardProps) {
   const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
-  const [showResults, setShowResults] = useState(false);
   const [hasAnswered, setHasAnswered] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Parsear opciones y respuestas correctas
   const options = flashcard.options ? JSON.parse(flashcard.options) : [];
@@ -33,6 +28,7 @@ export default function MultipleChoiceStudyCard({
     setSelectedAnswers([]);
     setShowResults(false);
     setHasAnswered(false);
+    setIsProcessing(false);
   }, [flashcard.id, questionNumber]);
 
   const handleOptionClick = (optionLetter: string) => {
@@ -61,16 +57,31 @@ export default function MultipleChoiceStudyCard({
   };
 
   const handleNext = () => {
-    if (!hasAnswered) return;
+    if (!hasAnswered || isProcessing) return;
+    
+    console.log('MultipleChoiceStudyCard - handleNext llamado');
+    console.log('hasAnswered:', hasAnswered, 'isProcessing:', isProcessing);
+    
+    // Prevenir múltiples clics
+    setIsProcessing(true);
+    
+    console.log('selectedAnswers:', selectedAnswers);
+    console.log('correctAnswers:', correctAnswers);
     
     // Verificar si la respuesta es correcta
     const isCorrect = correctAnswers.length === selectedAnswers.length && 
                      correctAnswers.every((answer: string) => selectedAnswers.includes(answer)) &&
                      selectedAnswers.every((answer: string) => correctAnswers.includes(answer));
     
-    // Registrar la respuesta al avanzar
+    console.log('Respuesta es correcta:', isCorrect);
+    
+    // SOLO registrar la respuesta, NO llamar onNext
     onAnswer(isCorrect);
-    onNext();
+    
+    console.log('Respuesta registrada, NO llamando onNext()');
+    // onNext(); // COMENTADO - puede estar causando doble navegación
+    
+    // El isProcessing se resetea cuando cambia la pregunta en useEffect
   };
 
   const getOptionStyle = (optionLetter: string) => {
@@ -89,7 +100,7 @@ export default function MultipleChoiceStudyCard({
     if (isCorrect && isSelected) {
       return "bg-green-600 border-green-500 text-white"; // Correcta y seleccionada
     } else if (isCorrect && !isSelected) {
-      return "bg-green-600 border-green-500 text-white"; // Correcta pero no seleccionada
+      return "bg-yellow-500 border-yellow-400 text-gray-900"; // Correcta pero no seleccionada (faltante)
     } else if (!isCorrect && isSelected) {
       return "bg-red-600 border-red-500 text-white"; // Incorrecta pero seleccionada
     } else {
@@ -108,7 +119,7 @@ export default function MultipleChoiceStudyCard({
     if (isCorrect && isSelected) {
       return "✅"; // Correcta y seleccionada
     } else if (isCorrect && !isSelected) {
-      return "✅"; // Correcta pero no seleccionada
+      return "💡"; // Correcta pero no seleccionada (faltante)
     } else if (!isCorrect && isSelected) {
       return "❌"; // Incorrecta pero seleccionada
     } else {
@@ -188,9 +199,14 @@ export default function MultipleChoiceStudyCard({
             {/* Botón Siguiente */}
             <button
               onClick={handleNext}
-              className="w-full py-3 sm:py-4 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg font-medium transition-colors shadow-lg text-sm sm:text-base"
+              disabled={isProcessing}
+              className={`w-full py-3 sm:py-4 px-4 text-white rounded-lg font-medium transition-colors shadow-lg text-sm sm:text-base ${
+                isProcessing 
+                  ? 'bg-gray-600 cursor-not-allowed opacity-50' 
+                  : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
+              }`}
             >
-              Siguiente →
+              {isProcessing ? 'Procesando...' : 'Siguiente →'}
             </button>
           </div>
         )}

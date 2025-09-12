@@ -34,14 +34,28 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
       setCorrectCount(0);
       setIncorrectCount(0);
       setStudiedCards(new Set());
+      console.log('StudyMode iniciado con', flashcards.length, 'flashcards');
+      flashcards.forEach((card, index) => {
+        console.log(`Flashcard ${index + 1}:`, card.question || card.front);
+      });
     }
-  }, [isOpen]);
+  }, [isOpen, flashcards]);
 
   const currentCard = flashcards[currentIndex];
   const isLastCard = currentIndex === flashcards.length - 1;
   const progress = ((correctCount + incorrectCount) / flashcards.length) * 100;
 
   const handleAnswer = (correct: boolean | null) => {
+    console.log('StudyMode - handleAnswer llamado con:', correct);
+    console.log('currentIndex antes:', currentIndex);
+    console.log('currentCard:', currentCard);
+    
+    // Prevenir procesamiento múltiple
+    if (studiedCards.has(currentIndex)) {
+      console.log('Esta tarjeta ya fue procesada, ignorando...');
+      return;
+    }
+    
     if (correct === true) {
       setCorrectCount(prev => prev + 1);
     } else if (correct === false) {
@@ -50,8 +64,24 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
 
     setStudiedCards(prev => new Set([...prev, currentIndex]));
     
-    // Solo avance automático para flashcards tradicionales
-    if (currentCard?.type !== 'multiple_choice') {
+    // Para múltiple choice, avanzar automáticamente después de registrar respuesta
+    if (currentCard?.type === 'multiple_choice') {
+      console.log('Es múltiple choice, avanzando automáticamente...');
+      setTimeout(() => {
+        if (isLastCard) {
+          console.log('Es la última tarjeta, no avanzando');
+          return;
+        }
+        console.log('Avanzando a la siguiente tarjeta...');
+        setCurrentIndex(prev => {
+          const newIndex = prev + 1;
+          console.log(`Cambiando índice de ${prev} a ${newIndex}`);
+          return newIndex;
+        });
+        setShowAnswer(false);
+      }, 1000); // Delay más largo para ver el resultado
+    } else {
+      // Solo avance automático para flashcards tradicionales
       setTimeout(() => {
         if (isLastCard) {
           return;
@@ -60,13 +90,19 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
         setShowAnswer(false);
       }, 500);
     }
+    
+    console.log('StudyMode - handleAnswer completado');
   };
 
   const handleNext = () => {
     if (isLastCard) {
       return;
     }
-    setCurrentIndex(prev => prev + 1);
+    const nextIndex = currentIndex + 1;
+    console.log(`Navegando de pregunta ${currentIndex + 1} a pregunta ${nextIndex + 1}`);
+    console.log(`Total de flashcards: ${flashcards.length}`);
+    console.log(`Flashcard actual:`, flashcards[nextIndex]);
+    setCurrentIndex(nextIndex);
     setShowAnswer(false);
   };
 
