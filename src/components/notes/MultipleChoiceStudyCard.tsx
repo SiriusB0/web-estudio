@@ -57,18 +57,16 @@ export default function MultipleChoiceStudyCard({
     setHasAnswered(true);
     setShowResults(true);
 
-    // Verificar si la respuesta es correcta
-    const isCorrect = correctAnswers.length === answers.length && 
-                     correctAnswers.every((answer: string) => answers.includes(answer));
-
-    // NO llamar onAnswer aquí - solo mostrar el resultado
-    // onAnswer se llamará cuando el usuario haga clic en "Siguiente"
+    // Solo mostrar el resultado, no registrar la respuesta aún
   };
 
   const handleNext = () => {
+    if (!hasAnswered) return;
+    
     // Verificar si la respuesta es correcta
     const isCorrect = correctAnswers.length === selectedAnswers.length && 
-                     correctAnswers.every((answer: string) => selectedAnswers.includes(answer));
+                     correctAnswers.every((answer: string) => selectedAnswers.includes(answer)) &&
+                     selectedAnswers.every((answer: string) => correctAnswers.includes(answer));
     
     // Registrar la respuesta al avanzar
     onAnswer(isCorrect);
@@ -107,12 +105,14 @@ export default function MultipleChoiceStudyCard({
     const isCorrect = correctAnswers.includes(optionLetter);
     const isSelected = selectedAnswers.includes(optionLetter);
 
-    if (isCorrect) {
-      return "✅"; // Respuesta correcta
-    } else if (isSelected) {
-      return "❌"; // Respuesta incorrecta seleccionada
+    if (isCorrect && isSelected) {
+      return "✅"; // Correcta y seleccionada
+    } else if (isCorrect && !isSelected) {
+      return "✅"; // Correcta pero no seleccionada
+    } else if (!isCorrect && isSelected) {
+      return "❌"; // Incorrecta pero seleccionada
     } else {
-      return "⚪"; // No seleccionada
+      return "⚪"; // No seleccionada y no correcta
     }
   };
 
@@ -173,7 +173,8 @@ export default function MultipleChoiceStudyCard({
           <div className="mt-4 space-y-3">
             <div className="p-3 sm:p-4 rounded-lg text-center bg-gray-800/50">
               {correctAnswers.length === selectedAnswers.length && 
-               correctAnswers.every((answer: string) => selectedAnswers.includes(answer)) ? (
+               correctAnswers.every((answer: string) => selectedAnswers.includes(answer)) &&
+               selectedAnswers.every((answer: string) => correctAnswers.includes(answer)) ? (
                 <div className="text-green-400 font-medium text-sm sm:text-base">
                   ¡Correcto! 🎉
                 </div>

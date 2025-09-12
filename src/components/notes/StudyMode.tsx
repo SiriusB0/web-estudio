@@ -50,14 +50,16 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
 
     setStudiedCards(prev => new Set([...prev, currentIndex]));
     
-    // Move to next card after a short delay
-    setTimeout(() => {
-      if (isLastCard) {
-        return;
-      }
-      setCurrentIndex(prev => prev + 1);
-      setShowAnswer(false);
-    }, 500);
+    // Solo avance automático para flashcards tradicionales
+    if (currentCard?.type !== 'multiple_choice') {
+      setTimeout(() => {
+        if (isLastCard) {
+          return;
+        }
+        setCurrentIndex(prev => prev + 1);
+        setShowAnswer(false);
+      }, 500);
+    }
   };
 
   const handleNext = () => {
