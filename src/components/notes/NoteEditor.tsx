@@ -1816,12 +1816,19 @@ export default function NoteEditor({
           <StudyModeSelector
             isOpen={showStudyModeSelector}
             onClose={() => setShowStudyModeSelector(false)}
-            onModeSelected={(mode) => {
+            onModeSelected={(mode, examConfig) => {
               setShowStudyModeSelector(false);
               if (mode === 'traditional') {
                 window.location.href = `/study/${noteId}?mode=traditional`;
               } else if (mode === 'multiple_choice') {
                 window.location.href = `/study/${noteId}?mode=multiple_choice`;
+              } else if (mode === 'exam' && examConfig) {
+                const params = new URLSearchParams({
+                  mode: 'exam',
+                  questions: examConfig.questionCount.toString(),
+                  time: examConfig.timeMinutes.toString()
+                });
+                window.location.href = `/study/${noteId}?${params.toString()}`;
               } else {
                 window.location.href = `/study/${noteId}?mode=mixed`;
               }

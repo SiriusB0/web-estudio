@@ -161,9 +161,21 @@ export default function FlashcardViewer({
     }
   };
 
-  const handleStudyModeSelected = (mode: 'traditional' | 'multiple_choice' | 'mixed') => {
-    setStudyMode(mode);
-    setShowStudyMode(true);
+  const handleStudyModeSelected = (mode: 'traditional' | 'multiple_choice' | 'mixed' | 'exam', examConfig?: { questionCount: number; timeMinutes: number }) => {
+    console.log('FlashcardViewer - handleStudyModeSelected called with:', { mode, examConfig });
+    if (mode === 'exam' && examConfig) {
+      // Para modo examen, redirigir a la página de estudio con parámetros
+      const params = new URLSearchParams({
+        mode: 'exam',
+        questions: examConfig.questionCount.toString(),
+        time: examConfig.timeMinutes.toString()
+      });
+      console.log('Redirecting to:', `/study/${noteId}?${params.toString()}`);
+      window.location.href = `/study/${noteId}?${params.toString()}`;
+    } else {
+      setStudyMode(mode as 'traditional' | 'multiple_choice' | 'mixed');
+      setShowStudyMode(true);
+    }
   };
 
   if (!isOpen) return null;

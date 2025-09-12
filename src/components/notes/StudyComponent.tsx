@@ -3,19 +3,27 @@
 import { useState, useEffect } from "react";
 import { Flashcard, getFlashcardsForNote } from "@/lib/notes/flashcards";
 import StudyMode from "./StudyMode";
+import ExamStudyMode from "./ExamStudyMode";
+import ExamResultsModal from "./ExamResultsModal";
+import { selectRandomFlashcards, ExamFlashcard, ExamResult } from "@/lib/notes/examUtils";
 import { ArrowLeftIcon, AcademicCapIcon } from "@heroicons/react/24/outline";
 
 interface StudyComponentProps {
   noteId: string;
-  studyMode: 'traditional' | 'multiple_choice' | 'mixed';
+  studyMode: 'traditional' | 'multiple_choice' | 'mixed' | 'exam';
+  examConfig?: { questionCount: number; timeMinutes: number };
   onBack: () => void;
 }
 
-export default function StudyComponent({ noteId, studyMode, onBack }: StudyComponentProps) {
+export default function StudyComponent({ noteId, studyMode, examConfig, onBack }: StudyComponentProps) {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [studyModeOpen, setStudyModeOpen] = useState(false);
+  const [examFlashcards, setExamFlashcards] = useState<ExamFlashcard[]>([]);
+  const [examModeOpen, setExamModeOpen] = useState(false);
+  const [examResult, setExamResult] = useState<ExamResult | null>(null);
+  const [showExamResults, setShowExamResults] = useState(false);
 
   useEffect(() => {
     loadFlashcards();
@@ -61,7 +69,37 @@ export default function StudyComponent({ noteId, studyMode, onBack }: StudyCompo
   };
 
   const startStudy = () => {
-    setStudyModeOpen(true);
+    console.log('startStudy called with:', { studyMode, examConfig, flashcardsLength: flashcards.length });
+    if (studyMode === 'exam' && examConfig) {
+      // Preparar flashcards para modo examen
+      const selectedCards = selectRandomFlashcards(flashcards, examConfig.questionCount);
+      console.log('Selected cards for exam:', selectedCards);
+      
+      // Actualizar ambos estados en la misma función
+      setExamFlashcards(selectedCards);
+      setExamModeOpen(true);
+      console.log('ExamModeOpen set to true, examFlashcards updated');
+    } else {
+      console.log('Opening regular study mode');
+      setStudyModeOpen(true);
+    }
+  };
+
+  const handleExamComplete = (result: ExamResult) => {
+    setExamResult(result);
+    setExamModeOpen(false);
+    setShowExamResults(true);
+  };
+
+  const handleRetryExam = () => {
+    setShowExamResults(false);
+    setExamResult(null);
+    // Generar nuevas flashcards aleatorias
+    if (examConfig) {
+      const selectedCards = selectRandomFlashcards(flashcards, examConfig.questionCount);
+      setExamFlashcards(selectedCards);
+      setExamModeOpen(true);
+    }
   };
 
   const closeStudy = () => {
@@ -145,13 +183,18 @@ export default function StudyComponent({ noteId, studyMode, onBack }: StudyCompo
                 {studyMode === 'traditional' && 'Tradicional'}
                 {studyMode === 'multiple_choice' && 'Múltiple Choice'}
                 {studyMode === 'mixed' && 'Mixto'}
+                {studyMode === 'exam' && `Examen (${examConfig?.questionCount} preguntas, ${examConfig?.timeMinutes}min)`}
               </span>
             </div>
           </div>
 
           <div className="flex flex-col space-y-3">
             <button
-              onClick={startStudy}
+              onClick={(e) => {
+                e.preventDefault();
+                console.log('StudyComponent - Comenzar Estudio clicked, calling startStudy()');
+                startStudy();
+              }}
               className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors font-medium"
             >
               <AcademicCapIcon className="w-5 h-5" />
@@ -176,6 +219,28 @@ export default function StudyComponent({ noteId, studyMode, onBack }: StudyCompo
         onClose={closeStudy}
         title={`Estudio - ${flashcards.length} flashcards`}
       />
+
+      {/* Componente ExamStudyMode */}
+      {examModeOpen && examFlashcards.length > 0 && (
+        <ExamStudyMode
+          flashcards={examFlashcards}
+          timeMinutes={examConfig?.timeMinutes || 15}
+          isOpen={examModeOpen}
+          onClose={() => setExamModeOpen(false)}
+          onExamComplete={handleExamComplete}
+          title={`Examen - ${examConfig?.questionCount || examFlashcards.length} preguntas`}
+        />
+      )}
+
+      {/* Modal de Resultados del Examen */}
+      {examResult && (
+        <ExamResultsModal
+          isOpen={showExamResults}
+          result={examResult}
+          onClose={() => setShowExamResults(false)}
+          onRetry={handleRetryExam}
+        />
+      )}
     </>
   );
 }

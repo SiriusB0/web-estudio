@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import NotePreview from './NotePreview';
 import StudyComponent from './StudyComponent';
+import ExamModeSelector from './ExamModeSelector';
 
 interface Note {
   id: string;
@@ -47,7 +48,11 @@ export default function MobileStudyInterface({ user }: { user: any }) {
   const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
-  const [studyMode, setStudyMode] = useState<'traditional' | 'multiple_choice' | 'mixed'>('traditional');
+  const [studyMode, setStudyMode] = useState<'traditional' | 'multiple_choice' | 'mixed' | 'exam'>('traditional');
+  const [showModeSelector, setShowModeSelector] = useState(false);
+  const [examConfig, setExamConfig] = useState<{ questionCount: number; timeMinutes: number } | null>(null);
+  const [flashcardCounts, setFlashcardCounts] = useState({ traditional: 0, multipleChoice: 0 });
+  const [showExamConfig, setShowExamConfig] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -88,6 +93,67 @@ export default function MobileStudyInterface({ user }: { user: any }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadFlashcardCounts = async (noteId: string) => {
+    try {
+      const { data } = await supabase
+        .from('note_deck_links')
+        .select(`
+          deck_id,
+          decks!inner (
+            cards (
+              type
+            )
+          )
+        `)
+        .eq('note_id', noteId);
+
+      if (!data) {
+        console.error('No data returned from note_deck_links');
+        setFlashcardCounts({ traditional: 0, multipleChoice: 0 });
+        return { traditional: 0, multipleChoice: 0 };
+      }
+
+      // Extraer todas las flashcards de todos los decks vinculados a la nota
+      const allCards = data.flatMap(link => 
+        (link.decks as any)?.cards || []
+      );
+
+      console.log('Flashcards encontradas:', allCards);
+      console.log('Total flashcards:', allCards.length);
+
+      const traditional = allCards.filter(f => f.type !== 'multiple_choice').length;
+      const multipleChoice = allCards.filter(f => f.type === 'multiple_choice').length;
+      
+      console.log('Conteo por tipo:', { traditional, multipleChoice, total: traditional + multipleChoice });
+      
+      const newCounts = { traditional, multipleChoice };
+      setFlashcardCounts(newCounts);
+      return newCounts;
+    } catch (error) {
+      console.error("Error loading flashcard counts:", error);
+      const errorCounts = { traditional: 0, multipleChoice: 0 };
+      setFlashcardCounts(errorCounts);
+      return errorCounts;
+    }
+  };
+
+  const handleExamModeClick = async () => {
+    if (currentNote) {
+      console.log('Cargando flashcards para nota:', currentNote.id);
+      const counts = await loadFlashcardCounts(currentNote.id);
+      console.log('Counts devueltos:', counts);
+      console.log('Estado flashcardCounts antes de abrir modal:', flashcardCounts);
+      setShowExamConfig(true);
+    }
+  };
+
+  const handleExamConfigured = (config: { questionCount: number; timeMinutes: number }) => {
+    setExamConfig(config);
+    setStudyMode('exam');
+    setShowExamConfig(false);
+    setCurrentScreen('study');
   };
 
   if (loading) {
@@ -302,6 +368,14 @@ export default function MobileStudyInterface({ user }: { user: any }) {
             >
               Mixto
             </button>
+            <button
+              onClick={handleExamModeClick}
+              className={`px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors flex-shrink-0 ${
+                studyMode === 'exam' ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-300'
+              }`}
+            >
+              ⏱️ Examen
+            </button>
           </div>
         </div>
 
@@ -310,9 +384,18 @@ export default function MobileStudyInterface({ user }: { user: any }) {
           <StudyComponent 
             noteId={currentNote.id}
             studyMode={studyMode}
+            examConfig={examConfig || undefined}
             onBack={() => setCurrentScreen('reading')}
           />
         </div>
+
+        {/* ExamModeSelector Modal */}
+        <ExamModeSelector
+          isOpen={showExamConfig}
+          onClose={() => setShowExamConfig(false)}
+          onStartExam={handleExamConfigured}
+          totalCards={flashcardCounts.traditional + flashcardCounts.multipleChoice}
+        />
       </div>
     );
   }
