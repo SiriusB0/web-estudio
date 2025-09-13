@@ -7,6 +7,8 @@ import ExamStudyMode from "./ExamStudyMode";
 import ExamResultsModal from "./ExamResultsModal";
 import { selectRandomFlashcards, ExamFlashcard, ExamResult } from "@/lib/notes/examUtils";
 import { ArrowLeftIcon, AcademicCapIcon } from "@heroicons/react/24/outline";
+import { supabase } from "@/lib/supabaseClient";
+import NotePreview from "./NotePreview";
 
 interface StudyComponentProps {
   noteId: string;
@@ -24,6 +26,8 @@ export default function StudyComponent({ noteId, studyMode, examConfig, onBack }
   const [examModeOpen, setExamModeOpen] = useState(false);
   const [examResult, setExamResult] = useState<ExamResult | null>(null);
   const [showExamResults, setShowExamResults] = useState(false);
+  const [noteContent, setNoteContent] = useState<string>('');
+  const [noteTitle, setNoteTitle] = useState<string>('');
 
   useEffect(() => {
     loadFlashcards();
@@ -33,6 +37,35 @@ export default function StudyComponent({ noteId, studyMode, examConfig, onBack }
     try {
       setLoading(true);
       setError(null);
+      
+      // Cargar contenido de la nota con JOIN para verificar carpeta pública
+      console.log('🔍 Intentando cargar nota con ID:', noteId);
+      const { data: noteData, error: noteError } = await supabase
+        .from('notes')
+        .select(`
+          title, 
+          content_md,
+          folder_id,
+          folders!inner(
+            id,
+            name,
+            is_public
+          )
+        `)
+        .eq('id', noteId)
+        .single();
+
+      console.log('📄 Datos de nota recibidos:', noteData);
+      console.log('❌ Error al cargar nota:', noteError);
+
+      if (noteError) {
+        console.error('💥 Error detallado:', noteError);
+        throw noteError;
+      }
+      
+      setNoteTitle(noteData?.title || '');
+      setNoteContent(noteData?.content_md || '');
+      console.log('✅ Nota cargada - Título:', noteData?.title, 'Contenido length:', noteData?.content_md?.length);
       
       const allFlashcards = await getFlashcardsForNote(noteId);
       console.log('Todas las flashcards cargadas:', allFlashcards);
@@ -164,50 +197,56 @@ export default function StudyComponent({ noteId, studyMode, examConfig, onBack }
 
   return (
     <>
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
-            <AcademicCapIcon className="w-10 h-10 text-white" />
-          </div>
-          
-          <h3 className="text-white text-xl font-medium mb-2">¡Listo para estudiar!</h3>
-          
-          <div className="bg-slate-800 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between text-sm text-slate-300 mb-2">
-              <span>Flashcards encontradas:</span>
-              <span className="font-medium text-white">{flashcards.length}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm text-slate-300">
-              <span>Modo de estudio:</span>
-              <span className="font-medium text-blue-400">
-                {studyMode === 'traditional' && 'Tradicional'}
-                {studyMode === 'multiple_choice' && 'Múltiple Choice'}
-                {studyMode === 'mixed' && 'Mixto'}
-                {studyMode === 'exam' && `Examen (${examConfig?.questionCount} preguntas, ${examConfig?.timeMinutes}min)`}
-              </span>
-            </div>
-          </div>
+      <div className="min-h-screen bg-gray-900 p-6">
+        {/* Header con botón de volver */}
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={onBack}
+            className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+          >
+            <ArrowLeftIcon className="w-5 h-5" />
+            <span>Volver</span>
+          </button>
+          <h1 className="text-xl font-semibold text-slate-200">{noteTitle}</h1>
+          <div></div>
+        </div>
 
-          <div className="flex flex-col space-y-3">
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                console.log('StudyComponent - Comenzar Estudio clicked, calling startStudy()');
-                startStudy();
-              }}
-              className="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors font-medium"
-            >
-              <AcademicCapIcon className="w-5 h-5" />
-              <span>Comenzar Estudio</span>
-            </button>
-            
-            <button
-              onClick={onBack}
-              className="flex items-center justify-center space-x-2 bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-lg transition-colors"
-            >
-              <ArrowLeftIcon className="w-5 h-5" />
-              <span>Volver</span>
-            </button>
+        {/* Contenido de la nota - Layout idéntico al StudyOnlyInterface */}
+        <div className="flex gap-6">
+          {/* Contenido principal */}
+          <div className="flex-1">
+            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+              <NotePreview content={noteContent} />
+            </div>
+          </div>
+          
+          {/* Sidebar derecho con info de flashcards */}
+          <div className="w-80">
+            {/* Info de flashcards y botón */}
+            <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-sm text-slate-300">
+                  <span>📚 {flashcards.length} flashcards disponibles</span>
+                  <div className="text-blue-400 font-medium mt-1">
+                    {studyMode === 'traditional' && 'Modo Tradicional'}
+                    {studyMode === 'multiple_choice' && 'Modo Múltiple Choice'}
+                    {studyMode === 'mixed' && 'Modo Mixto'}
+                    {studyMode === 'exam' && `Modo Examen (${examConfig?.questionCount} preguntas, ${examConfig?.timeMinutes}min)`}
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    console.log('StudyComponent - Comenzar Estudio clicked, calling startStudy()');
+                    startStudy();
+                  }}
+                  className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+                >
+                  <AcademicCapIcon className="w-5 h-5" />
+                  <span>🎯 Estudiar</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

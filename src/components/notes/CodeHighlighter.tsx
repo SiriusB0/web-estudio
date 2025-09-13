@@ -164,9 +164,8 @@ export default function CodeHighlighter({ text }: CodeHighlighterProps) {
       {blocks.map((block, index) => {
         if (block.type === 'code') {
           return (
-            <div className="text-xs sm:text-sm">
+            <div key={index} className="text-xs sm:text-sm">
               <SyntaxHighlighter
-                key={index}
                 language={block.language || 'text'}
                 style={vscDarkPlus}
                 customStyle={{

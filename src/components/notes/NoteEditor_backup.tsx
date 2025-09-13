@@ -18,6 +18,7 @@ import DocumentOutline from "./DocumentOutline";
 import { supabase } from "@/lib/supabaseClient";
 import { Flashcard, getOrCreateDeckForNote, saveFlashcard, countFlashcardsForNote, countFlashcardsByType } from "@/lib/notes/flashcards";
 import StudyModeSelector from "./StudyModeSelector";
+import { toggleContentPublic as toggleAdminContentPublic, isCurrentUserAdmin } from "@/lib/adminLibrary";
 
 interface NoteEditorProps {
   initialContent: string;
@@ -37,6 +38,8 @@ interface NoteEditorProps {
   onToggleSplitView?: () => void;
   isSidebarCollapsed?: boolean;
   onToggleSidebar?: () => void;
+  isPublicContent?: boolean;
+  isAdmin?: boolean;
 }
 
 export default function NoteEditor({ 
@@ -48,6 +51,8 @@ export default function NoteEditor({
   noteId,
   noteTitle,
   viewMode = "edit",
+  isPublicContent = false,
+  isAdmin = false,
   onViewModeChange,
   isFocusMode = false,
   isSplitView = false,
@@ -371,8 +376,8 @@ export default function NoteEditor({
               attributes: { 
                 class: `cm-h${level} header-clickable`,
                 style: `margin-left: ${indentPixels}px; cursor: pointer;`,
-                'data-line': lineNum - 1, // 0-indexed para compatibilidad
-                'data-level': level
+                'data-line': (lineNum - 1).toString(), // 0-indexed para compatibilidad
+                'data-level': level.toString()
               }
             }).range(line.from)
           );
@@ -753,12 +758,11 @@ export default function NoteEditor({
   const [showFlashcardViewer, setShowFlashcardViewer] = useState(false);
   const [showStudyModeSelector, setShowStudyModeSelector] = useState(false);
   const [showOutline, setShowOutline] = useState(false);
+  const [isPublic, setIsPublic] = useState(false);
   const [showEmojiDropdown, setShowEmojiDropdown] = useState(false);
   const [showStructureDropdown, setShowStructureDropdown] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [helpSection, setHelpSection] = useState<string | null>(null);
-  const [isPublic, setIsPublic] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const outlineButtonRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
   
@@ -769,72 +773,48 @@ export default function NoteEditor({
       setContent(initialContent);
       setPendingQuestion("");
       setFlashcards([]);
-      setFlashcardCount(0);
-      setTraditionalCount(0);
-      setMultipleChoiceCount(0);
-      loadFlashcardCount();
-      loadNoteStatus();
-    }
-  }, [noteId, initialContent]);
-
-  // Check if user is admin and load note status
-  const checkIfUserIsAdmin = async (userId: string): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase
-        .from('invitation_codes')
-        .select('id')
-        .eq('created_by', userId)
-        .limit(1);
+      setShowFlashcardViewer(false);
       
-      if (error) return false;
-      return data && data.length > 0;
-    } catch (error) {
-      console.error('Error checking admin status:', error);
-      return false;
+      // Cargar estado público de la nota si es del admin
+      if (noteId && isAdmin) {
+        loadNotePublicStatus();
+      }
     }
-  };
+  }, [noteId, currentNoteRef, initialContent, isAdmin]);
 
-  const loadNoteStatus = async () => {
-    if (!noteId || !userId) return;
+  // Función para cargar el estado público de la nota
+  const loadNotePublicStatus = async () => {
+    if (!noteId) return;
     
     try {
-      // Check admin status
-      const adminCheck = await checkIfUserIsAdmin(userId);
-      setIsAdmin(adminCheck);
-      
-      // Load note public status
       const { data, error } = await supabase
         .from('notes')
         .select('is_public')
         .eq('id', noteId)
         .single();
       
-      if (!error && data) {
-        setIsPublic(data.is_public || false);
-      }
+      if (error) throw error;
+      setIsPublic(data?.is_public || false);
     } catch (error) {
-      console.error('Error loading note status:', error);
+      console.error('Error cargando estado público:', error);
     }
   };
 
-  const togglePublicStatus = async () => {
+  // Función para cambiar estado público (solo admin)
+  const handleTogglePublic = async () => {
     if (!noteId || !isAdmin) return;
     
     try {
-      const newPublicStatus = !isPublic;
+      const newPublicState = !isPublic;
+      const success = await toggleAdminContentPublic('note', noteId, newPublicState);
       
-      const { error } = await supabase
-        .from('notes')
-        .update({ is_public: newPublicStatus })
-        .eq('id', noteId);
-      
-      if (!error) {
-        setIsPublic(newPublicStatus);
+      if (success) {
+        setIsPublic(newPublicState);
       } else {
-        console.error('Error updating note public status:', error);
+        console.error('Error cambiando estado público');
       }
     } catch (error) {
-      console.error('Error toggling public status:', error);
+      console.error('Error en handleTogglePublic:', error);
     }
   };
   
@@ -1678,33 +1658,31 @@ export default function NoteEditor({
             </button>
           )}
 
-          {/* Separador */}
-          <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
-
-          {/* Información de flashcards */}
-          {flashcardCount > 0 && (
+          {/* Botón de hacer público (solo para admin) */}
+          {isAdmin && noteId && (
             <>
-              <span className="text-xs text-blue-400 bg-blue-900/30 px-2 py-1 rounded">
-                📚 {flashcardCount} flashcards
-              </span>
-              <button
-                onClick={() => setShowFlashcardViewer(true)}
-                title="Ver flashcards"
-                className="px-2 py-1 text-xs bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
-              >
-                Ver
-              </button>
-              <button
-                onClick={() => setShowStudyModeSelector(true)}
-                title="Estudiar flashcards"
-                className="px-2 py-1 text-xs bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
-              >
-                Estudiar
-              </button>
               <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
+              <button
+                onClick={handleTogglePublic}
+                className={`px-2 py-1 text-xs rounded transition-colors ${
+                  isPublic
+                    ? 'bg-green-700 hover:bg-green-600 text-white' 
+                    : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+                }`}
+                title={isPublic ? "Hacer privado" : "Hacer público"}
+              >
+                {isPublic ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" className="text-current">
+                    <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" className="text-current">
+                    <path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                  </svg>
+                )}
+              </button>
             </>
           )}
-
 
           {/* Información de palabras */}
           <div className="flex items-center gap-2 text-xs text-gray-400">
@@ -1737,7 +1715,8 @@ export default function NoteEditor({
                 <CodeMirror
                   ref={editorRef}
                   value={content}
-                  onChange={handleChange}
+                  onChange={isPublicContent ? undefined : handleChange}
+                  editable={!isPublicContent}
                   className="h-full text-base"
                   style={{ backgroundColor: '#1e1e1e', height: '100%', width: '100%' }}
                   extensions={[
@@ -1806,7 +1785,8 @@ export default function NoteEditor({
               <CodeMirror
                 ref={editorRef}
                 value={content}
-                onChange={handleChange}
+                onChange={isPublicContent ? undefined : handleChange}
+                editable={!isPublicContent}
                 className="h-full w-full text-base"
                 style={{ backgroundColor: '#1e1e1e', height: editorHeight }}
                 extensions={[

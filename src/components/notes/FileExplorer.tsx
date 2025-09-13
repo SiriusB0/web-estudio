@@ -27,6 +27,7 @@ type Folder = {
   owner_id: string;
   sort_order: number;
   created_at: string;
+  is_public?: boolean;
 };
 
 type Note = {
@@ -36,6 +37,7 @@ type Note = {
   owner_id: string;
   sort_order: number;
   created_at: string;
+  is_public?: boolean;
 };
 
 type TreeItem = {
@@ -60,14 +62,17 @@ export default function FileExplorer({ onNoteSelect, onNewNote, onNewFolder, sel
   const [folders, setFolders] = useState<Folder[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const [editingItem, setEditingItem] = useState<{id: string, type: 'folder' | 'note', name: string} | null>(null);
+  const [showStudySelector, setShowStudySelector] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
   const [draggedItem, setDraggedItem] = useState<{id: string, type: 'note' | 'folder'} | null>(null);
   const [dragOverItem, setDragOverItem] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dropPosition, setDropPosition] = useState<'above' | 'below' | 'inside' | null>(null);
-  const [editingItem, setEditingItem] = useState<{id: string, type: 'note' | 'folder', isNew?: boolean} | null>(null);
   const [editingName, setEditingName] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<{show: boolean, message: string, onConfirm: () => void} | null>(null);
   const [showFolderDeleteConfirm, setShowFolderDeleteConfirm] = useState<{show: boolean, folderName: string, noteCount: number, onConfirm: () => void} | null>(null);
@@ -76,7 +81,6 @@ export default function FileExplorer({ onNoteSelect, onNewNote, onNewFolder, sel
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [hasAutoExpanded, setHasAutoExpanded] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const router = useRouter();
 
   useEffect(() => {
     loadData();
@@ -170,15 +174,94 @@ export default function FileExplorer({ onNoteSelect, onNewNote, onNewFolder, sel
     };
   }, []);
 
+  const checkIfUserIsAdmin = async (userId: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('invitation_codes')
+        .select('id')
+        .eq('created_by', userId)
+        .limit(1);
+      
+      if (error) return false;
+      return data && data.length > 0;
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false;
+    }
+  };
+
+  const toggleFolderPublicStatus = async (folderId: string) => {
+    if (!isAdmin) return;
+    
+    try {
+      const folder = folders.find(f => f.id === folderId);
+      if (!folder) {
+        console.error('Folder not found:', folderId);
+        return;
+      }
+      
+      const newPublicStatus = !folder.is_public;
+      console.log('🔄 Cambiando estado de carpeta:', { folderId, from: folder.is_public, to: newPublicStatus });
+      
+      const { error } = await supabase
+        .from('folders')
+        .update({ is_public: newPublicStatus })
+        .eq('id', folderId);
+      
+      console.log('💾 Resultado actualización BD:', { error, success: !error });
+      
+      if (!error) {
+        setFolders(prev => prev.map(f => 
+          f.id === folderId ? { ...f, is_public: newPublicStatus } : f
+        ));
+        console.log('✅ Estado local actualizado correctamente');
+      } else {
+        console.error('❌ Error updating folder public status:', error?.message || error);
+      }
+    } catch (error) {
+      console.error('💥 Error toggling folder public status:', error instanceof Error ? error.message : error);
+    }
+  };
+
+  const toggleNotePublicStatus = async (noteId: string) => {
+    if (!isAdmin) return;
+    
+    try {
+      const note = notes.find(n => n.id === noteId);
+      if (!note) return;
+      
+      const newPublicStatus = !note.is_public;
+      
+      const { error } = await supabase
+        .from('notes')
+        .update({ is_public: newPublicStatus })
+        .eq('id', noteId);
+      
+      if (!error) {
+        setNotes(prev => prev.map(n => 
+          n.id === noteId ? { ...n, is_public: newPublicStatus } : n
+        ));
+      } else {
+        console.error('Error updating note public status:', error);
+      }
+    } catch (error) {
+      console.error('Error toggling note public status:', error);
+    }
+  };
+
   const loadData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Check admin status
+      const adminCheck = await checkIfUserIsAdmin(user.id);
+      setIsAdmin(adminCheck);
+
       // Load folders
       const { data: foldersData } = await supabase
         .from("folders")
-        .select("*")
+        .select("*, is_public")
         .eq("owner_id", user.id)
         .order("sort_order", { ascending: true })
         .order("name");
@@ -186,7 +269,7 @@ export default function FileExplorer({ onNoteSelect, onNewNote, onNewFolder, sel
       // Load notes
       const { data: notesData } = await supabase
         .from("notes")
-        .select("id, title, folder_id, owner_id, sort_order, created_at")
+        .select("id, title, folder_id, owner_id, sort_order, created_at, is_public")
         .eq("owner_id", user.id)
         .order("sort_order", { ascending: true })
         .order("title");
@@ -914,6 +997,11 @@ Escribe aquí tu contenido...`;
               setSelectedFolderId(null); // Clear folder selection when selecting note
             }
           }}
+          onDoubleClick={() => {
+            if (item.type === "folder") {
+              startRename(item);
+            }
+          }}
         >
           {item.type === "folder" && (
             <>
@@ -923,6 +1011,27 @@ Escribe aquí tu contenido...`;
                 <ChevronRightIcon className="w-4 h-4 mr-1" />
               )}
               <FolderIcon className="w-4 h-4 mr-2 text-gray-400" />
+              {/* Public/Private indicator for admin */}
+              {isAdmin && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFolderPublicStatus(item.id);
+                  }}
+                  className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title={folders.find(f => f.id === item.id)?.is_public ? "Hacer privada" : "Hacer pública"}
+                >
+                  {folders.find(f => f.id === item.id)?.is_public ? (
+                    <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 5.73 6.974 6 7.5 6A1.5 1.5 0 019 7.5V8a2 2 0 004 0 2 2 0 011.523-1.943A5.977 5.977 0 0116 10c0 3.314-2.686 6-6 6s-6-2.686-6-6a4.75 4.75 0 01.332-1.973z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+              )}
             </>
           )}
           {item.type === "note" && (
@@ -967,11 +1076,13 @@ Escribe aquí tu contenido...`;
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <span className="text-sm flex-1 overflow-hidden">
-              <span className="block truncate" title={item.name}>
-                {item.name.length > 25 ? `${item.name.substring(0, 25)}...` : item.name}
+            <div className="flex items-center justify-between flex-1 min-w-0">
+              <span className="text-sm flex-1 overflow-hidden mr-2">
+                <span className="block truncate" title={item.name}>
+                  {item.name.length > 15 ? `${item.name.substring(0, 15)}...` : item.name}
+                </span>
               </span>
-            </span>
+            </div>
           )}
           {item.type === "note" && editingItem?.id !== item.id && (
             <div className="flex items-center gap-1">
@@ -995,27 +1106,23 @@ Escribe aquí tu contenido...`;
             </div>
           )}
           {item.type === "folder" && editingItem?.id !== item.id && (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleStudyFolder(item.id, item.name);
-                }}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-green-400"
-                title="Estudiar flashcards de esta carpeta"
-              >
-                <AcademicCapIcon className="w-3 h-3" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startRename(item);
-                }}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white"
-                title="Renombrar carpeta"
-              >
-                <PencilIcon className="w-3 h-3" />
-              </button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {isAdmin && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFolderPublicStatus(item.id);
+                  }}
+                  className={`opacity-0 group-hover:opacity-100 p-1 rounded transition-colors ${
+                    folders.find(f => f.id === item.id)?.is_public
+                      ? "bg-blue-600 hover:bg-blue-500 text-white" 
+                      : "bg-gray-600 hover:bg-gray-500 text-white"
+                  }`}
+                  title={folders.find(f => f.id === item.id)?.is_public ? "Marcar como privada" : "Marcar como pública"}
+                >
+                  {folders.find(f => f.id === item.id)?.is_public ? "🌐" : "🔒"}
+                </button>
+              )}
               <button
                 onClick={(e) => deleteFolder(item.id, e)}
                 className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-red-400"
@@ -1102,7 +1209,7 @@ Escribe aquí tu contenido...`;
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                createFolder();
+                onNewFolder?.();
               }}
               className="p-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded transition-colors border border-gray-700/50 hover:border-gray-600/50"
               title={selectedFolderId ? "Nueva Subcarpeta" : "Nueva Carpeta"}

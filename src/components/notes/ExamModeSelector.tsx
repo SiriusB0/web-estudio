@@ -112,39 +112,34 @@ export default function ExamModeSelector({
             </div>
           </div>
 
-          {/* Exam Summary */}
+          {/* Exam Summary - Horizontal Layout */}
           <div className="mb-3 p-3 bg-gradient-to-r from-slate-800/50 to-slate-700/50 rounded-xl border border-slate-600/30">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-5 h-5 bg-purple-500/20 rounded-lg flex items-center justify-center text-xs">
-                📋
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 bg-purple-500/20 rounded-lg flex items-center justify-center text-xs">
+                  📚
+                </div>
+                <span className="text-white text-sm font-medium">{questionCount} flashcards disponibles</span>
               </div>
-              <h3 className="text-white font-medium text-sm">Resumen</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="text-center p-2 bg-slate-800/50 rounded-lg">
-                <div className="text-lg font-bold text-blue-400">{questionCount}</div>
-                <div className="text-xs text-slate-400">Preguntas</div>
-              </div>
-              <div className="text-center p-2 bg-slate-800/50 rounded-lg">
-                <div className="text-lg font-bold text-red-400">{timeMinutes}</div>
-                <div className="text-xs text-slate-400">Minutos</div>
+              <div className="flex items-center gap-3">
+                <span className="text-slate-400 text-sm">Modo Examen ({questionCount} preguntas, {timeMinutes}min)</span>
+                <button
+                  onClick={handleStartExam}
+                  className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-lg transition-all duration-200 shadow-lg shadow-green-500/20 text-sm font-medium"
+                >
+                  Comenzar
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-2">
+          {/* Cancel Button Only */}
+          <div className="flex justify-center">
             <button
               onClick={onClose}
-              className="flex-1 py-3 px-3 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 rounded-xl transition-all duration-200 border border-slate-600/50 text-sm font-medium"
+              className="px-6 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 rounded-lg transition-all duration-200 border border-slate-600/50 text-sm font-medium"
             >
               Cancelar
-            </button>
-            <button
-              onClick={handleStartExam}
-              className="flex-1 py-3 px-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-xl transition-all duration-200 shadow-lg shadow-green-500/20 text-sm font-medium"
-            >
-              Comenzar Examen
             </button>
           </div>
         </div>

@@ -40,7 +40,11 @@ interface Folder {
   sort_order?: number;
 }
 
-export default function MobileStudyInterface({ user }: { user: any }) {
+interface MobileStudyInterfaceProps {
+  user: any;
+}
+
+export default function MobileStudyInterface({ user }: MobileStudyInterfaceProps) {
   const [loading, setLoading] = useState(true);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);

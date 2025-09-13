@@ -102,24 +102,6 @@ export const getAllInvitationCodes = async (): Promise<InvitationCode[]> => {
   }
 };
 
-// Obtener el ID del creador de un código de invitación (para clonación)
-export const getInvitationCodeCreator = async (code: string): Promise<string | null> => {
-  try {
-    const { data, error } = await supabase.rpc('get_invitation_code_creator', {
-      invitation_code: code
-    });
-
-    if (error) {
-      console.error('Error obteniendo creador del código:', error);
-      return null;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Error en getInvitationCodeCreator:', error);
-    return null;
-  }
-};
 
 // Validar código de invitación (para registro)
 export const validateInvitationCode = async (code: string): Promise<boolean> => {
@@ -199,8 +181,26 @@ export const getCodeStatus = (code: InvitationCode): 'active' | 'used' | 'expire
 // Copiar código al portapapeles
 export const copyToClipboard = async (text: string): Promise<boolean> => {
   try {
-    await navigator.clipboard.writeText(text);
-    return true;
+    // Verificar si la API de clipboard está disponible
+    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    
+    // Fallback para navegadores que no soportan clipboard API
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    const success = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    
+    return success;
   } catch (error) {
     console.error('Error copiando al portapapeles:', error);
     return false;

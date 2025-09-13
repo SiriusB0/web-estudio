@@ -294,23 +294,6 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
                 📄
               </button>
             )}
-            
-            {/* Botón + para nueva anotación en párrafos */}
-            {!hasAnnotation && showButton && (
-              <button
-                className="ml-2 w-5 h-5 text-white hover:text-gray-200 bg-white/20 hover:bg-white/30 rounded-full transition-all inline-flex items-center justify-center text-sm align-top border border-white/40"
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setAnnotationPosition({ x: rect.left - 320, y: rect.top });
-                  setEditingAnnotationId(null);
-                  setShowAnnotation(true);
-                  setCurrentLineId(lineId);
-                }}
-                title="Agregar anotación"
-              >
-                +
-              </button>
-            )}
           </p>
         </div>
       );

@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { supabase, usernameToEmail } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { validateInvitationCode, getInvitationCodeCreator, markInvitationCodeAsUsed } from "@/lib/invitations";
+import { validateInvitationCode, markInvitationCodeAsUsed } from "@/lib/invitations";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -29,11 +29,6 @@ export default function SignupPage() {
         throw new Error("Código de invitación inválido, usado o expirado");
       }
 
-      // 2. Obtener ID del creador del código para la clonación
-      const sourceUserId = await getInvitationCodeCreator(invitationCode.trim().toUpperCase());
-      if (!sourceUserId) {
-        throw new Error("Error obteniendo el creador del código de invitación");
-      }
 
       // 3. Crear el nuevo usuario en Supabase Auth
       const email = usernameToEmail(username.trim());
@@ -45,7 +40,7 @@ export default function SignupPage() {
       const user = signUpData.user;
       if (!user) throw new Error("No se pudo obtener el usuario tras el registro");
 
-      // 4. Marcar código como usado (crítico para evitar reutilización)
+      // 2. Marcar código como usado (crítico para evitar reutilización)
       const codeUsed = await markInvitationCodeAsUsed(invitationCode.trim().toUpperCase(), user.id);
       if (!codeUsed) {
         // Si falla, es crucial eliminar el usuario para mantener la integridad
@@ -53,25 +48,12 @@ export default function SignupPage() {
         throw new Error("Error crítico al procesar el código de invitación. Inténtalo de nuevo.");
       }
 
-      // 5. Crear el perfil del usuario
+      // 3. Crear el perfil del usuario
       const { error: profileError } = await supabase.from("profiles").insert({
         id: user.id,
         username,
       });
       if (profileError) throw profileError;
-
-      // 6. Clonar los datos del admin al nuevo usuario
-      const { error: cloneError } = await supabase.rpc('clone_user_data', {
-        source_user_id: sourceUserId,
-        target_user_id: user.id
-      });
-
-      if (cloneError) {
-        // Si la clonación falla, no es un error de bloqueo. El usuario ya está creado.
-        // Se registra el error para seguimiento, pero se permite al usuario continuar.
-        console.error("Error durante la clonación de datos (no bloqueante):", cloneError);
-        // Opcional: podrías mostrar un mensaje al usuario o notificar a un admin.
-      }
 
       // Ir al dashboard
       router.push("/dashboard");

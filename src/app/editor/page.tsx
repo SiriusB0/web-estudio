@@ -9,6 +9,7 @@ import NotePreview from "@/components/notes/NotePreview";
 import DocumentOutline from "@/components/notes/DocumentOutline";
 import { AnnotationsList } from "@/components/notes/AnnotationsList";
 import MobileStudyInterface from "@/components/notes/MobileStudyInterface";
+import StudyOnlyInterface from "@/components/StudyOnlyInterface";
 import { extractWikiLinks, updateNoteLinks } from "@/lib/notes/wikilinks";
 import { isMobileDevice } from "@/lib/utils/deviceDetection";
 
@@ -39,6 +40,7 @@ export default function EditorPage() {
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [explorerKey, setExplorerKey] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
 
   // Cerrar esquema al cambiar de modo
@@ -65,6 +67,28 @@ export default function EditorPage() {
     }
   }, []);
 
+  // Simple admin check - you can modify this logic as needed
+  const checkIfUserIsAdmin = async (userId: string): Promise<boolean> => {
+    try {
+      console.log('🔍 Verificando si usuario es admin:', userId);
+      
+      // Check if user has any invitation codes (simple admin check)
+      const { data, error } = await supabase
+        .from('invitation_codes')
+        .select('id')
+        .eq('created_by', userId)
+        .limit(1);
+      
+      console.log('📊 Resultado admin check:', { data, error, isAdmin: !error && data && data.length > 0 });
+      
+      if (error) return false;
+      return data && data.length > 0;
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false;
+    }
+  };
+
   const checkAuth = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -74,8 +98,14 @@ export default function EditorPage() {
       }
       setUser(user);
       
-      // Load first note or create welcome note
-      await loadFirstNote(user.id);
+      // Check if user is admin
+      const adminCheck = await checkIfUserIsAdmin(user.id);
+      setIsAdmin(adminCheck);
+      
+      // If not admin, don't load notes - they'll see StudyOnlyInterface
+      if (adminCheck) {
+        await loadFirstNote(user.id);
+      }
     } catch (error) {
       console.error("Error checking auth:", error);
       router.push("/login");
@@ -426,7 +456,12 @@ Escribe aquí tu contenido...`;
 
   // Mostrar interfaz móvil si es dispositivo móvil
   if (isMobile) {
-    return <MobileStudyInterface user={user} initialNote={currentNote} />;
+    return <MobileStudyInterface user={user} />;
+  }
+
+  // Si no es admin, mostrar solo interfaz de estudio
+  if (!isAdmin) {
+    return <StudyOnlyInterface user={user} />;
   }
 
   return (
