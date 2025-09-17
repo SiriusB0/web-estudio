@@ -44,21 +44,14 @@ export default function EditorPage() {
   const [darkBackground, setDarkBackground] = useState(false);
   const router = useRouter();
 
-  // Cerrar esquema al cambiar de modo
-  useEffect(() => {
-    if (viewMode === "edit" && showOutline) {
-      setShowOutline(false);
-    }
-  }, [viewMode, showOutline]);
-
   useEffect(() => {
     // Detectar dispositivo móvil
     setIsMobile(isMobileDevice());
-    
+
     // Verificar si hay parámetro note en URL ANTES de checkAuth
     const urlParams = new URLSearchParams(window.location.search);
     const noteParam = urlParams.get('note');
-    
+
     if (noteParam) {
       // Si hay nota específica, cargar directamente sin cargar nota por defecto
       checkAuthAndLoadSpecificNote(noteParam);
@@ -457,19 +450,15 @@ Escribe aquí tu contenido...`;
     return null; // Will redirect to login
   }
 
-  // DESACTIVADO: Mostrar interfaz móvil si es dispositivo móvil
-  // if (isMobile) {
-  //   return <MobileStudyInterface user={user} />;
-  // }
-
-  // Si no es admin, mostrar solo interfaz de estudio
-  console.log('🚦 Render decision - isAdmin:', isAdmin, 'user:', user?.id);
+  // Si no es admin, mostrar solo interfaz de estudio (tanto en móvil como desktop)
   if (!isAdmin) {
-    console.log('🎓 Rendering StudyOnlyInterface for non-admin user');
     return <StudyOnlyInterface user={user} />;
   }
-  
-  console.log('👑 Rendering full editor for admin user');
+
+  // Mostrar interfaz móvil si es dispositivo móvil (solo para admin)
+  if (isMobile) {
+    return <StudyOnlyInterface user={user} />;
+  }
 
   return (
     <div className={`h-screen flex ${darkBackground ? 'bg-black' : ''}`} style={darkBackground ? {} : {backgroundColor: '#0a0a0a'}}>
@@ -581,18 +570,18 @@ Escribe aquí tu contenido...`;
                       </button>
                     </div>
                   </div>
-                  
+
                   {/* Preview Content */}
                   <div className={`flex-1 overflow-y-auto ${darkBackground ? 'bg-black' : 'bg-gray-950'}`}>
-                    <NotePreview 
-                      content={currentNote.content_md} 
+                    <NotePreview
+                      content={currentNote.content_md}
                       studyMode={true}
                       noteId={currentNote.id}
                       userId={user.id}
                       onWikiLinkClick={async (noteTitle: string) => {
                         console.log("Editor page wikilink clicked:", noteTitle);
                         if (!user?.id) return;
-                        
+
                         // Buscar o crear nota
                         const { data: targetNote } = await supabase
                           .from("notes")
@@ -649,7 +638,7 @@ Escribe aquí tu contenido...`;
             // En modo estudio, buscar el elemento por ID y hacer scroll
             const lines = currentNote.content_md.split('\n');
             const targetLine = lines[line - 1];
-            
+
             if (targetLine && targetLine.match(/^#{1,6}\s/)) {
               const match = targetLine.match(/^(#{1,6})\s+(.+)$/);
               if (match) {
@@ -659,22 +648,22 @@ Escribe aquí tu contenido...`;
                   .replace(/[^\w\s-]/g, '')
                   .replace(/\s+/g, '-')
                   .substring(0, 50);
-                
+
                 // Buscar el elemento en el DOM
                 const element = document.getElementById(headerId);
                 if (element) {
-                  element.scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'start' 
+                  element.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
                   });
                 } else {
                   // Fallback: buscar por texto del header
                   const allHeaders = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
                   for (const header of allHeaders) {
                     if (header.textContent?.includes(headerText)) {
-                      header.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'start' 
+                      header.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
                       });
                       break;
                     }
@@ -705,9 +694,9 @@ Escribe aquí tu contenido...`;
             const noteIcon = paragraph.querySelector('button[title="Ver/editar anotación"]');
             if (noteIcon && noteIcon.getAttribute('data-line-id') === annotation.lineId) {
               // Hacer scroll al párrafo
-              paragraph.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'center' 
+              paragraph.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
               });
               // Hacer clic en el icono después de un breve delay
               setTimeout(() => {

@@ -99,60 +99,165 @@ export default function StudyOnlyInterface({ user }: StudyOnlyInterfaceProps) {
     }
   };
 
-  // Cargar contenido público del admin
+  // Cargar contenido basado en permisos del usuario
   useEffect(() => {
-    const loadPublicContent = async () => {
+    const loadContent = async () => {
       try {
-        console.log('🔍 Cargando contenido público...');
-        
-        // Consulta simple para carpetas públicas
-        const { data: folders, error: foldersError } = await supabase
-          .from('folders')
-          .select('*')
-          .eq('is_public', true)
-          .order('sort_order', { ascending: true });
+        console.log('🔍 Cargando contenido para usuario:', user?.id);
 
-        console.log('📁 Carpetas públicas encontradas:', folders?.length || 0);
-        if (foldersError) {
-          console.error('❌ Error carpetas:', foldersError);
+        // Si el usuario NO está autenticado, mostrar solo contenido público
+        if (!user?.id) {
+          console.log('👤 Usuario NO autenticado - mostrando contenido público');
+
+          // Consulta simple para carpetas públicas
+          const { data: folders, error: foldersError } = await supabase
+            .from('folders')
+            .select('*')
+            .eq('is_public', true)
+            .order('sort_order', { ascending: true });
+
+          console.log('📁 Carpetas públicas encontradas:', folders?.length || 0);
+          if (folders) {
+            folders.forEach(f => console.log('  -', f.name, '(ID:', f.id + ')'));
+          }
+
+          // Consulta para TODAS las notas en carpetas públicas
+          // (independientemente de si la nota individual es pública o no)
+          const { data: notes, error: notesError } = await supabase
+            .from('notes')
+            .select(`
+              *,
+              folders!inner(owner_id, name, is_public)
+            `)
+            .eq('folders.is_public', true)
+            .order('sort_order', { ascending: true });
+
+          console.log('📄 Notas públicas encontradas:', notes?.length || 0);
+          if (notes) {
+            notes.forEach(n => console.log('  -', n.title, '(folder_id:', n.folder_id + ')'));
+          }
+
+          // Mapear notas para asegurar compatibilidad
+          const mappedNotes = (notes || []).map(note => ({
+            ...note,
+            content: note.content_md || '',
+            content_md: note.content_md || ''
+          }));
+
+          console.log('✅ Contenido público - Carpetas:', folders?.length || 0, 'Notas:', mappedNotes.length);
+
+          // Usar solo contenido público
+          setPublicFolders(folders || []);
+          setPublicNotes(mappedNotes);
+        } else {
+          // Usuario autenticado - verificar si es propietario o usuario común
+          console.log('🔐 Usuario autenticado, verificando permisos...');
+
+          // Primero intentar cargar contenido del usuario (si es propietario)
+          const { data: userFolders, error: userFoldersError } = await supabase
+            .from('folders')
+            .select('*')
+            .eq('owner_id', user.id)
+            .order('sort_order', { ascending: true });
+
+          const { data: userNotes, error: userNotesError } = await supabase
+            .from('notes')
+            .select('*')
+            .eq('owner_id', user.id)
+            .order('sort_order', { ascending: true });
+
+          console.log('👑 Contenido del propietario:', {
+            folders: userFolders?.length || 0,
+            notes: userNotes?.length || 0,
+            userId: user.id
+          });
+
+          // Verificar si es el propietario del contenido público
+          // (tiene carpetas públicas O es el owner de carpetas públicas)
+          const { data: publicFoldersByOwner, error: publicOwnerError } = await supabase
+            .from('folders')
+            .select('id, name, owner_id')
+            .eq('is_public', true)
+            .eq('owner_id', user.id);
+
+          const isPublicContentOwner = publicFoldersByOwner && publicFoldersByOwner.length > 0;
+
+          console.log('🌐 Contenido público del que es owner:', {
+            publicFolders: publicFoldersByOwner?.length || 0,
+            isPublicContentOwner
+          });
+
+          // Verificar si realmente es propietario del contenido público
+          const isOwner = isPublicContentOwner;
+          console.log('🔍 ¿Es propietario de contenido público?', isOwner);
+
+          if (isOwner) {
+            // Usuario es propietario - mostrar todo su contenido
+            console.log('✅ Usuario es PROPIETARIO - mostrando todo su contenido');
+
+            // Mapear notas para asegurar compatibilidad
+            const mappedUserNotes = (userNotes || []).map(note => ({
+              ...note,
+              content: note.content_md || '',
+              content_md: note.content_md || ''
+            }));
+
+            setPublicFolders(userFolders || []);
+            setPublicNotes(mappedUserNotes);
+          } else {
+            // Usuario autenticado pero no es propietario - mostrar contenido público
+            console.log('👤 Usuario autenticado pero NO es propietario - mostrando contenido público');
+
+            // Consulta simple para carpetas públicas
+            const { data: publicFolders, error: publicFoldersError } = await supabase
+              .from('folders')
+              .select('*')
+              .eq('is_public', true)
+              .order('sort_order', { ascending: true });
+
+            console.log('📁 Carpetas públicas encontradas:', publicFolders?.length || 0);
+            if (publicFolders) {
+              publicFolders.forEach(f => console.log('  -', f.name, '(ID:', f.id + ')'));
+            }
+
+            // Consulta para TODAS las notas en carpetas públicas
+            // (independientemente de si la nota individual es pública o no)
+            const { data: publicNotes, error: publicNotesError } = await supabase
+              .from('notes')
+              .select(`
+                *,
+                folders!inner(owner_id, name, is_public)
+              `)
+              .eq('folders.is_public', true)
+              .order('sort_order', { ascending: true });
+
+            console.log('📄 Notas públicas encontradas:', publicNotes?.length || 0);
+            if (publicNotes) {
+              publicNotes.forEach(n => console.log('  -', n.title, '(folder_id:', n.folder_id + ')'));
+            }
+
+            console.log('📁 Contenido público para usuario común:', { folders: publicFolders?.length || 0, notes: publicNotes?.length || 0 });
+
+            // Mapear notas para asegurar compatibilidad
+            const mappedPublicNotes = (publicNotes || []).map(note => ({
+              ...note,
+              content: note.content_md || '',
+              content_md: note.content_md || ''
+            }));
+
+            setPublicFolders(publicFolders || []);
+            setPublicNotes(mappedPublicNotes);
+          }
         }
-
-        // Consulta para notas de carpetas públicas (JOIN con folders)
-        const { data: notes, error: notesError } = await supabase
-          .from('notes')
-          .select(`
-            *,
-            folders!inner(is_public)
-          `)
-          .eq('folders.is_public', true)
-          .order('sort_order', { ascending: true });
-
-        console.log('📄 Notas públicas encontradas:', notes?.length || 0);
-        if (notesError) {
-          console.error('❌ Error notas:', notesError);
-        }
-
-        // Mapear notas para asegurar compatibilidad
-        const mappedNotes = (notes || []).map(note => ({
-          ...note,
-          content: note.content_md || '',
-          content_md: note.content_md || ''
-        }));
-
-        console.log('✅ Contenido final - Carpetas:', folders?.length || 0, 'Notas:', mappedNotes.length);
-
-        // Usar solo contenido real
-        setPublicFolders(folders || []);
-        setPublicNotes(mappedNotes);
       } catch (error) {
-        console.error('💥 Error loading public content:', error);
+        console.error('💥 Error loading content:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    loadPublicContent();
-  }, []);
+    loadContent();
+  }, [user]);
 
   // Modificar la función de selección de nota para cerrar el sidebar automáticamente en móvil
   const selectNote = async (note: Note) => {

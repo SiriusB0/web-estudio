@@ -1750,16 +1750,14 @@ export default function NoteEditor({
           <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
 
           {/* Información de flashcards */}
-          <span className="text-xs text-blue-400 bg-blue-900/30 px-2 py-1 rounded">
-            📚 {flashcardCount} flashcards
-          </span>
-          <button
+          <span
+            className="flex items-center justify-center gap-1 text-xs text-blue-400 bg-blue-900/30 px-2 py-1 rounded cursor-pointer hover:bg-blue-800/40 transition-colors"
             onClick={() => setShowFlashcardViewer(true)}
-            title="Ver y crear flashcards"
-            className="px-2 py-1 text-xs bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
+            title="Ver flashcards"
           >
-            Ver
-          </button>
+            <span>📚</span>
+            <span>{flashcardCount}</span>
+          </span>
           <button
             onClick={() => flashcardCount > 0 && setShowStudyModeSelector(true)}
             title="Estudiar flashcards"
