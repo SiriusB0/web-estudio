@@ -5,6 +5,7 @@ import { Flashcard, getFlashcardsForNote, deleteFlashcard, deleteFlashcards, upd
 import { MultipleChoiceQuestion } from "@/lib/notes/multipleChoiceParser";
 import ManualFlashcardCreator from "./ManualFlashcardCreator";
 import MultipleChoiceCreator from "./MultipleChoiceCreator";
+import BulkFlashcardCreator from "./BulkFlashcardCreator";
 import ImageModal from "./ImageModal";
 import StudyMode from "./StudyMode";
 import MixedStudyMode from "./MixedStudyMode";
@@ -33,6 +34,7 @@ export default function FlashcardViewer({
   const [editBack, setEditBack] = useState("");
   const [showManualCreator, setShowManualCreator] = useState(false);
   const [showMultipleChoiceCreator, setShowMultipleChoiceCreator] = useState(false);
+  const [showBulkCreator, setShowBulkCreator] = useState(false);
   const [showStudyMode, setShowStudyMode] = useState(false);
   const [showStudyModeSelector, setShowStudyModeSelector] = useState(false);
   const [traditionalCount, setTraditionalCount] = useState(0);
@@ -161,6 +163,11 @@ export default function FlashcardViewer({
     }
   };
 
+  const handleBulkFlashcardsCreated = () => {
+    loadFlashcards();
+    onFlashcardsChange();
+  };
+
   const handleStudyModeSelected = (mode: 'traditional' | 'multiple_choice' | 'mixed' | 'exam', examConfig?: { questionCount: number; timeMinutes: number }) => {
     console.log('FlashcardViewer - handleStudyModeSelected called with:', { mode, examConfig });
     if (mode === 'exam' && examConfig) {
@@ -198,60 +205,62 @@ export default function FlashcardViewer({
 
         {/* Actions */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-300">
-              {flashcards.length} flashcards
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-blue-400 bg-blue-900/30 px-2 py-1 rounded">
+              📚 {flashcards.length}
             </span>
-            {selectedCards.size > 0 && (
-              <span className="text-sm text-blue-400">
-                ({selectedCards.size} seleccionadas)
-              </span>
-            )}
+            <span className="text-sm text-green-400 bg-green-900/30 px-2 py-1 rounded">
+              ✓ {selectedCards.size}
+            </span>
           </div>
           
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowManualCreator(true)}
-              className="px-3 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+              className="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
             >
-              + Crear Manual
+              + Manual
             </button>
             <button
               onClick={() => setShowMultipleChoiceCreator(true)}
-              className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors"
+              className="px-2 py-1 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors"
             >
-              + Opción Múltiple
+              + Múltiple
             </button>
-            {flashcards.length > 0 && (
-              <>
-                <button
-                  onClick={() => setShowStudyModeSelector(true)}
-                  className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-                >
-                  📚 Estudiar
-                </button>
-                <button
-                  onClick={selectAllCards}
-                  className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors"
-                >
-                  Seleccionar todas
-                </button>
-                <button
-                  onClick={deselectAllCards}
-                  className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors"
-                >
-                  Deseleccionar
-                </button>
-                {selectedCards.size > 0 && (
-                  <button
-                    onClick={handleBatchDelete}
-                    className="px-3 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
-                  >
-                    Eliminar seleccionadas
-                  </button>
-                )}
-              </>
-            )}
+            <button
+              onClick={() => setShowBulkCreator(true)}
+              className="px-2 py-1 text-xs bg-orange-600 hover:bg-orange-700 text-white rounded transition-colors"
+            >
+              + Lote
+            </button>
+            <button
+              onClick={() => flashcards.length > 0 && setShowStudyModeSelector(true)}
+              disabled={flashcards.length === 0}
+              className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+            >
+              📚 Estudiar
+            </button>
+            <button
+              onClick={() => flashcards.length > 0 && selectAllCards()}
+              disabled={flashcards.length === 0}
+              className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+            >
+              ✓ Todas
+            </button>
+            <button
+              onClick={() => selectedCards.size > 0 && deselectAllCards()}
+              disabled={selectedCards.size === 0}
+              className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+            >
+              ✗ Ninguna
+            </button>
+            <button
+              onClick={() => selectedCards.size > 0 && handleBatchDelete()}
+              disabled={selectedCards.size === 0}
+              className="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+            >
+              🗑️ Eliminar
+            </button>
           </div>
         </div>
 
@@ -268,23 +277,43 @@ export default function FlashcardViewer({
               Usa Alt+Q y Alt+A en el editor para crear flashcards automáticamente.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-4">
               {flashcards.map((card) => (
                 <div
                   key={card.id}
-                  className={`border rounded-lg p-4 transition-colors ${
+                  className={`border rounded-lg p-3 transition-colors ${
                     selectedCards.has(card.id!) 
                       ? 'border-blue-500 bg-blue-900/20' 
                       : 'border-gray-700 bg-gray-800'
                   }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedCards.has(card.id!)}
-                      onChange={() => toggleCardSelection(card.id!)}
-                      className="mt-1"
-                    />
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between">
+                      <input
+                        type="checkbox"
+                        checked={selectedCards.has(card.id!)}
+                        onChange={() => toggleCardSelection(card.id!)}
+                        className="mt-1"
+                      />
+                      {editingCard !== card.id && (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleEdit(card)}
+                            className="p-1 text-gray-400 hover:text-white transition-colors"
+                            title="Editar"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => handleDelete(card.id!)}
+                            className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                            title="Eliminar"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     
                     <div className="flex-1">
                       {editingCard === card.id ? (
@@ -310,13 +339,13 @@ export default function FlashcardViewer({
                           <div className="flex gap-2">
                             <button
                               onClick={handleSaveEdit}
-                              className="px-3 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                              className="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
                             >
                               Guardar
                             </button>
                             <button
                               onClick={handleCancelEdit}
-                              className="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
+                              className="px-2 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
                             >
                               Cancelar
                             </button>
@@ -331,15 +360,15 @@ export default function FlashcardViewer({
                                 <img
                                   src={card.front_image_url}
                                   alt={card.front_image_name || "Imagen pregunta"}
-                                  className="max-w-32 max-h-24 object-contain bg-gray-700 rounded cursor-pointer"
+                                  className="max-w-full max-h-20 object-contain bg-gray-700 rounded cursor-pointer"
                                   onClick={() => openImageModal(card.front_image_url!, card.front_image_name || "Imagen pregunta")}
                                 />
                                 {card.front && (
-                                  <p className="text-white text-sm mt-1">{card.front}</p>
+                                  <p className="text-white text-sm mt-1 line-clamp-2">{card.front}</p>
                                 )}
                               </div>
                             ) : (
-                              <p className="text-white text-sm mt-1">{card.front}</p>
+                              <p className="text-white text-sm mt-1 line-clamp-2">{card.front}</p>
                             )}
                           </div>
                           <div>
@@ -349,39 +378,20 @@ export default function FlashcardViewer({
                                 <img
                                   src={card.back_image_url}
                                   alt={card.back_image_name || "Imagen respuesta"}
-                                  className="max-w-32 max-h-24 object-contain bg-gray-700 rounded cursor-pointer"
+                                  className="max-w-full max-h-20 object-contain bg-gray-700 rounded cursor-pointer"
                                   onClick={() => openImageModal(card.back_image_url!, card.back_image_name || "Imagen respuesta")}
                                 />
                                 {card.back && (
-                                  <p className="text-gray-300 text-sm mt-1">{card.back}</p>
+                                  <p className="text-gray-300 text-sm mt-1 line-clamp-2">{card.back}</p>
                                 )}
                               </div>
                             ) : (
-                              <p className="text-gray-300 text-sm mt-1">{card.back}</p>
+                              <p className="text-gray-300 text-sm mt-1 line-clamp-2">{card.back}</p>
                             )}
                           </div>
                         </div>
                       )}
                     </div>
-                    
-                    {editingCard !== card.id && (
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleEdit(card)}
-                          className="p-1 text-gray-400 hover:text-white transition-colors"
-                          title="Editar"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={() => handleDelete(card.id!)}
-                          className="p-1 text-gray-400 hover:text-red-400 transition-colors"
-                          title="Eliminar"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}
@@ -406,6 +416,15 @@ export default function FlashcardViewer({
         isOpen={showMultipleChoiceCreator}
         onClose={() => setShowMultipleChoiceCreator(false)}
         onQuestionsCreated={handleMultipleChoiceCreated}
+      />
+
+      {/* Bulk Flashcard Creator */}
+      <BulkFlashcardCreator
+        noteId={noteId}
+        noteTitle={noteTitle}
+        isOpen={showBulkCreator}
+        onClose={() => setShowBulkCreator(false)}
+        onFlashcardsCreated={handleBulkFlashcardsCreated}
       />
 
       {/* Study Mode Selector */}

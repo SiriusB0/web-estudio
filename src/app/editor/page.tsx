@@ -41,6 +41,7 @@ export default function EditorPage() {
   const [explorerKey, setExplorerKey] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [darkBackground, setDarkBackground] = useState(false);
   const router = useRouter();
 
   // Cerrar esquema al cambiar de modo
@@ -79,7 +80,8 @@ export default function EditorPage() {
         .eq('created_by', userId)
         .limit(1);
       
-      console.log('📊 Resultado admin check:', { data, error, isAdmin: !error && data && data.length > 0 });
+      const isAdminResult = !error && data && data.length > 0;
+      console.log('📊 Resultado admin check:', { data, error, dataLength: data?.length, isAdmin: isAdminResult });
       
       if (error) return false;
       return data && data.length > 0;
@@ -100,6 +102,7 @@ export default function EditorPage() {
       
       // Check if user is admin
       const adminCheck = await checkIfUserIsAdmin(user.id);
+      console.log('🎯 Setting isAdmin to:', adminCheck);
       setIsAdmin(adminCheck);
       
       // If not admin, don't load notes - they'll see StudyOnlyInterface
@@ -454,18 +457,22 @@ Escribe aquí tu contenido...`;
     return null; // Will redirect to login
   }
 
-  // Mostrar interfaz móvil si es dispositivo móvil
-  if (isMobile) {
-    return <MobileStudyInterface user={user} />;
-  }
+  // DESACTIVADO: Mostrar interfaz móvil si es dispositivo móvil
+  // if (isMobile) {
+  //   return <MobileStudyInterface user={user} />;
+  // }
 
   // Si no es admin, mostrar solo interfaz de estudio
+  console.log('🚦 Render decision - isAdmin:', isAdmin, 'user:', user?.id);
   if (!isAdmin) {
+    console.log('🎓 Rendering StudyOnlyInterface for non-admin user');
     return <StudyOnlyInterface user={user} />;
   }
+  
+  console.log('👑 Rendering full editor for admin user');
 
   return (
-    <div className="h-screen flex" style={{backgroundColor: '#0a0a0a'}}>
+    <div className={`h-screen flex ${darkBackground ? 'bg-black' : ''}`} style={darkBackground ? {} : {backgroundColor: '#0a0a0a'}}>
       {/* Sidebar */}
       {!isFocusMode && !isSplitView && viewMode !== "preview" && !isSidebarCollapsed && (
         <FileExplorer
@@ -514,9 +521,29 @@ Escribe aquí tu contenido...`;
               ) : (
                 <div className="h-full flex flex-col">
                   {/* Preview Status Bar */}
-                  <div className="flex items-center px-2 py-1.5 border-b border-gray-800/50 text-xs text-gray-300" style={{backgroundColor: '#0a0a0a'}}>
+                  <div className={`flex items-center px-2 py-1.5 border-b ${darkBackground ? 'border-slate-600' : 'border-gray-800/50'} text-xs text-gray-300 ${darkBackground ? 'bg-black' : ''}`} style={darkBackground ? {} : {backgroundColor: '#0a0a0a'}}>
                     <span className="text-gray-400 flex-shrink-0">Modo Estudio</span>
                     <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                      {/* Botón Dark Background */}
+                      <button
+                        onClick={() => setDarkBackground(!darkBackground)}
+                        className={`w-7 h-7 flex items-center justify-center text-xs rounded transition-colors flex-shrink-0 ${
+                          darkBackground
+                            ? 'bg-yellow-600/90 hover:bg-yellow-500/90 border border-yellow-500/50'
+                            : 'bg-slate-800 hover:bg-slate-700 border border-slate-600/50'
+                        }`}
+                        title={darkBackground ? "Modo claro" : "Modo oscuro"}
+                      >
+                        {darkBackground ? (
+                          <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                          </svg>
+                        ) : (
+                          <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                          </svg>
+                        )}
+                      </button>
                       <button
                         ref={outlineButtonRef}
                         onClick={() => setShowOutline(!showOutline)}
@@ -556,10 +583,12 @@ Escribe aquí tu contenido...`;
                   </div>
                   
                   {/* Preview Content */}
-                  <div className="flex-1 overflow-y-auto bg-gray-950">
+                  <div className={`flex-1 overflow-y-auto ${darkBackground ? 'bg-black' : 'bg-gray-950'}`}>
                     <NotePreview 
                       content={currentNote.content_md} 
-                      studyMode={false}
+                      studyMode={true}
+                      noteId={currentNote.id}
+                      userId={user.id}
                       onWikiLinkClick={async (noteTitle: string) => {
                         console.log("Editor page wikilink clicked:", noteTitle);
                         if (!user?.id) return;
@@ -603,7 +632,7 @@ Escribe aquí tu contenido...`;
             </div>
           </>
         ) : (
-          <div className="flex-1 bg-gray-950">
+          <div className={`flex-1 ${darkBackground ? 'bg-black' : 'bg-gray-950'}`}>
             {/* Área vacía sin mensaje */}
           </div>
         )}

@@ -96,23 +96,21 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
     if (!showResults) {
       // Antes de mostrar resultados
       if (selectedAnswers.includes(optionLetter)) {
-        return "bg-blue-600 border-blue-500 text-white";
+        return "bg-blue-900/50 border-blue-500 text-white";
       }
-      return "bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600 hover:border-blue-500";
+      return "bg-gray-800/50 border-transparent text-white hover:bg-gray-700/70";
     }
 
     // Después de mostrar resultados
     const isCorrect = correctAnswers.includes(optionLetter);
     const isSelected = selectedAnswers.includes(optionLetter);
 
-    if (isCorrect && isSelected) {
-      return "bg-green-600 border-green-500 text-white"; // Correcta y seleccionada
-    } else if (isCorrect && !isSelected) {
-      return "bg-yellow-500 border-yellow-400 text-gray-900"; // Correcta pero no seleccionada (faltante)
-    } else if (!isCorrect && isSelected) {
-      return "bg-red-600 border-red-500 text-white"; // Incorrecta pero seleccionada
+    if (isCorrect) {
+      return "bg-green-800/60 border-green-500 text-white"; // Respuesta correcta
+    } else if (isSelected) {
+      return "bg-red-800/60 border-red-500 text-white"; // Respuesta incorrecta seleccionada
     } else {
-      return "bg-slate-700 border-slate-600 text-slate-400"; // No seleccionada y no correcta
+      return "bg-gray-800/50 border-transparent text-gray-400"; // No seleccionada
     }
   };
 
@@ -138,7 +136,7 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 text-slate-200">
+    <div className="flex flex-col h-full bg-gradient-to-br from-[#0B132B] to-[#1C2541] text-gray-200">
       {/* Contenedor principal - fijo para desktop, responsive para móvil */}
       <div 
         className="relative mx-auto"
@@ -152,7 +150,7 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
       >
         {/* Question Box - Fijo para desktop, responsive para móvil */}
         <div 
-          className="bg-slate-700 border border-slate-600 rounded-2xl shadow-lg scrollbar-hide"
+          className="bg-[#1C2541]/80 border border-gray-700 rounded-2xl shadow-2xl shadow-black/30 backdrop-blur-sm scrollbar-hide"
           style={{
             width: isMobile ? '100%' : '700px',
             height: isMobile ? '200px' : '250px',
@@ -190,39 +188,39 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
           {options.map((option: any) => (
             <div
               key={option.letter}
-              className={`rounded-xl border cursor-pointer transition-all duration-200 ${getOptionStyle(option.letter)} ${hasAnswered ? 'cursor-default' : 'hover:bg-slate-600 hover:border-blue-500'}`}
+              className={`rounded-lg border-2 cursor-pointer transition-all duration-200 ${getOptionStyle(option.letter)} ${hasAnswered ? 'cursor-default' : ''}`}
               style={{
                 width: isMobile ? '100%' : '342.5px',
-                height: isMobile ? '60px' : '70px',
-                padding: isMobile ? '0 12px' : '0 15px',
+                minHeight: isMobile ? '60px' : '70px',
+                padding: isMobile ? '12px' : '15px',
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 fontSize: isMobile ? '0.9em' : '1em',
                 boxSizing: 'border-box'
               }}
               onClick={() => !hasAnswered && handleOptionClick(option.letter)}
             >
-              <input
-                type={isMultipleAnswer ? "checkbox" : "radio"}
-                name={isMultipleAnswer ? `option-${option.letter}` : "respuesta"}
-                value={option.letter}
-                checked={selectedAnswers.includes(option.letter)}
-                onChange={() => {}}
-                className="hidden"
-                disabled={hasAnswered}
-              />
-              <span className="flex-1 text-left text-base">
-                <span className="inline-block w-6 mr-3 font-semibold text-blue-400">
+              <div className="flex-1 text-left overflow-hidden">
+                <span className="font-bold text-blue-400 mr-2">
                   {option.letter}.
                 </span>
-                <span className="text-slate-200">
+                <span 
+                  className="font-medium break-words"
+                  style={{
+                    fontSize: option.text.length > 50 ? '0.8em' : 
+                             option.text.length > 30 ? '0.9em' : '1em',
+                    lineHeight: '1.3'
+                  }}
+                >
                   {option.text}
                 </span>
-              </span>
-              {/* Indicador visual de selección unificado */}
-              <span className="ml-2 text-lg">
-                {selectedAnswers.includes(option.letter) ? "🔘" : "⚪"}
-              </span>
+                {showResults && correctAnswers.includes(option.letter) && (
+                  <span className="block mt-1 font-bold text-green-400 text-sm">✓ Correcto</span>
+                )}
+                {showResults && !correctAnswers.includes(option.letter) && selectedAnswers.includes(option.letter) && (
+                  <span className="block mt-1 font-bold text-red-400 text-sm">✗ Incorrecto</span>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -232,10 +230,10 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
           <button
             onClick={() => handleSubmit()}
             disabled={selectedAnswers.length === 0}
-            className={`rounded-lg font-medium transition-colors ${
+            className={`rounded-lg font-bold transition-colors duration-300 shadow-lg ${
               selectedAnswers.length > 0
-                ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-lg'
-                : 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/30'
+                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
             }`}
             style={{
               position: isMobile ? 'relative' : 'absolute',
@@ -274,11 +272,11 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
                correctAnswers.every((answer: string) => selectedAnswers.includes(answer)) &&
                selectedAnswers.every((answer: string) => correctAnswers.includes(answer)) ? (
                 <div className="text-green-400 font-medium" style={{ fontSize: isMobile ? '0.9em' : '1em' }}>
-                  ¡Correcto! 🎉
+                  ¡Excelente! Respuesta correcta.
                 </div>
               ) : (
                 <div className="text-red-400 font-medium" style={{ fontSize: isMobile ? '0.9em' : '1em' }}>
-                  Incorrecto. La respuesta correcta es: {correctAnswers.join(', ')}
+                  Respuesta incorrecta. La respuesta correcta es: {correctAnswers.join(', ')}
                 </div>
               )}
             </div>
@@ -289,7 +287,7 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
               className={`text-white rounded-lg font-medium transition-colors shadow-lg ${
                 isProcessing 
                   ? 'bg-gray-600 cursor-not-allowed opacity-50' 
-                  : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
+                  : 'bg-blue-600 hover:bg-blue-700'
               }`}
               style={{
                 position: isMobile ? 'relative' : 'absolute',

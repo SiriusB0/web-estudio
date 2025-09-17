@@ -3,21 +3,25 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { 
-  FolderIcon, 
+  AcademicCapIcon, 
+  ArrowLeftIcon, 
   DocumentTextIcon, 
+  ChevronDownIcon, 
   ChevronRightIcon, 
-  ChevronDownIcon,
-  ArrowLeftIcon,
+  FolderIcon, 
+  DocumentIcon, 
+  TrashIcon, 
+  PlusIcon,
+  ArrowLeftOnRectangleIcon,
+  BookOpenIcon,
   Bars3Icon,
   XMarkIcon,
-  AcademicCapIcon,
-  HomeIcon,
-  ArrowLeftOnRectangleIcon,
-  BookOpenIcon
+  HomeIcon
 } from '@heroicons/react/24/outline';
 import NotePreview from './NotePreview';
 import StudyComponent from './StudyComponent';
 import ExamModeSelector from './ExamModeSelector';
+import { TextSizeProvider, TextSizeControls } from './TextSizeController';
 
 interface Note {
   id: string;
@@ -44,10 +48,22 @@ interface MobileStudyInterfaceProps {
   user: any;
 }
 
+// Componente principal con TextSizeProvider
 export default function MobileStudyInterface({ user }: MobileStudyInterfaceProps) {
+  return (
+    <TextSizeProvider defaultSize={0.85} minSize={0.6} maxSize={1.4} step={0.1}>
+      <MobileStudyInterfaceContent user={user} />
+    </TextSizeProvider>
+  );
+}
+
+function MobileStudyInterfaceContent({ user }: MobileStudyInterfaceProps) {
   const [loading, setLoading] = useState(true);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
+  
+  // Estados para controles móviles
+  const [darkBackground, setDarkBackground] = useState(false);
   const [currentScreen, setCurrentScreen] = useState<'menu' | 'folder' | 'reading' | 'study'>('menu');
   const [currentFolder, setCurrentFolder] = useState<Folder | null>(null);
   const [currentNote, setCurrentNote] = useState<Note | null>(null);
@@ -281,9 +297,13 @@ export default function MobileStudyInterface({ user }: MobileStudyInterfaceProps
   // PANTALLA 2: LECTURA DE NOTA
   if (currentScreen === 'reading' && currentNote) {
     return (
-      <div className="min-h-screen bg-slate-900 max-w-full overflow-x-hidden">
+      <div className={`min-h-screen max-w-full overflow-x-hidden ${
+        darkBackground ? 'bg-black' : 'bg-slate-900'
+      }`}>
         {/* Header */}
-        <div className="bg-slate-800 px-3 py-4 sm:p-6 border-b border-slate-700">
+        <div className={`px-3 py-4 sm:p-6 border-b border-slate-700 ${
+          darkBackground ? 'bg-black' : 'bg-slate-800'
+        }`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
               <button
@@ -292,20 +312,47 @@ export default function MobileStudyInterface({ user }: MobileStudyInterfaceProps
               >
                 <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
-              <h1 className="text-base sm:text-xl font-semibold text-white truncate flex-1 min-w-0">{currentNote.title}</h1>
+              <h1 className="hidden sm:block text-base sm:text-xl font-semibold text-white truncate flex-1 min-w-0">{currentNote.title}</h1>
+              
             </div>
-            <button
-              onClick={() => setCurrentScreen('study')}
-              className="flex items-center space-x-1 sm:space-x-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 sm:px-5 sm:py-3 rounded-lg sm:rounded-xl transition-colors flex-shrink-0 ml-2 sm:ml-4"
-            >
-              <AcademicCapIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="text-sm sm:text-base font-medium">Estudiar</span>
-            </button>
+            {/* Controles de texto y botón estudiar */}
+            <div className="flex items-center gap-2">
+              {/* Botón Dark Mode - Visible en móvil y escritorio */}
+              <button
+                onClick={() => setDarkBackground(!darkBackground)}
+                className={`w-10 h-8 rounded-lg transition-colors flex items-center justify-center mr-2 sm:mr-4 ${
+                  darkBackground 
+                    ? 'bg-yellow-600/50 hover:bg-yellow-500/50' 
+                    : 'bg-slate-700/50 hover:bg-slate-600/50'
+                }`}
+                title={darkBackground ? "Modo claro" : "Modo oscuro"}
+              >
+                {darkBackground ? (
+                  <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                )}
+              </button>
+              
+              <button
+                onClick={() => setCurrentScreen('study')}
+                className="flex items-center space-x-1 sm:space-x-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 sm:px-5 sm:py-3 rounded-lg sm:rounded-xl transition-colors flex-shrink-0"
+              >
+                <AcademicCapIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm sm:text-base font-medium">Estudiar</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Contenido de la nota */}
-        <div className="px-3 py-4 sm:p-6 max-w-full overflow-x-hidden">
+        {/* Contenido de la nota - SIN márgenes horizontales en móvil, texto al 100% del viewport */}
+        <div className={`px-0 py-1 sm:p-6 max-w-full overflow-x-hidden ${
+          darkBackground ? 'bg-black' : ''
+        }`} data-note-content>
           {currentNote.content_md && currentNote.content_md.trim() ? (
             <NotePreview 
               content={currentNote.content_md}
@@ -325,82 +372,15 @@ export default function MobileStudyInterface({ user }: MobileStudyInterfaceProps
     );
   }
 
-  // PANTALLA 3: ESTUDIO
+  // PANTALLA 4: MODO ESTUDIO
   if (currentScreen === 'study' && currentNote) {
     return (
-      <div className="min-h-screen bg-slate-900 max-w-full overflow-x-hidden">
-        {/* Header */}
-        <div className="bg-slate-800 px-3 py-4 sm:p-6 border-b border-slate-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 sm:space-x-4">
-              <button
-                onClick={() => setCurrentScreen('reading')}
-                className="p-1 sm:p-2 text-slate-400 hover:text-white rounded-lg"
-              >
-                <ArrowLeftIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-              </button>
-              <h1 className="text-base sm:text-xl font-semibold text-white">Modo Estudio</h1>
-            </div>
-          </div>
-        </div>
-
-        {/* Selector de modo */}
-        <div className="px-3 py-4 sm:p-6 border-b border-slate-700">
-          <h3 className="text-white text-base sm:text-lg font-medium mb-3 sm:mb-4">Tipo de estudio:</h3>
-          <div className="flex gap-2 sm:gap-3 flex-wrap">
-            <button
-              onClick={() => setStudyMode('traditional')}
-              className={`px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors flex-shrink-0 ${
-                studyMode === 'traditional' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
-              }`}
-            >
-              Tradicional
-            </button>
-            <button
-              onClick={() => setStudyMode('multiple_choice')}
-              className={`px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors flex-shrink-0 ${
-                studyMode === 'multiple_choice' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
-              }`}
-            >
-              Múltiple Choice
-            </button>
-            <button
-              onClick={() => setStudyMode('mixed')}
-              className={`px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors flex-shrink-0 ${
-                studyMode === 'mixed' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'
-              }`}
-            >
-              Mixto
-            </button>
-            <button
-              onClick={handleExamModeClick}
-              className={`px-3 py-2 sm:px-4 sm:py-3 rounded-lg sm:rounded-xl text-sm sm:text-base font-medium transition-colors flex-shrink-0 ${
-                studyMode === 'exam' ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-300'
-              }`}
-            >
-              ⏱️ Examen
-            </button>
-          </div>
-        </div>
-
-        {/* Componente de estudio */}
-        <div className="flex-1 max-w-full overflow-x-hidden">
-          <StudyComponent 
-            noteId={currentNote.id}
-            studyMode={studyMode}
-            examConfig={examConfig || undefined}
-            onBack={() => setCurrentScreen('reading')}
-          />
-        </div>
-
-        {/* ExamModeSelector Modal */}
-        <ExamModeSelector
-          isOpen={showExamConfig}
-          onClose={() => setShowExamConfig(false)}
-          onStartExam={handleExamConfigured}
-          totalCards={flashcardCounts.traditional + flashcardCounts.multipleChoice}
-        />
-      </div>
+      <StudyComponent
+        noteId={currentNote.id}
+        onBack={() => setCurrentScreen('reading')}
+        studyMode={studyMode}
+        examConfig={examConfig || undefined}
+      />
     );
   }
 

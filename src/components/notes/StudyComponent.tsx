@@ -28,10 +28,20 @@ export default function StudyComponent({ noteId, studyMode, examConfig, onBack }
   const [showExamResults, setShowExamResults] = useState(false);
   const [noteContent, setNoteContent] = useState<string>('');
   const [noteTitle, setNoteTitle] = useState<string>('');
+  const [hasAutoStarted, setHasAutoStarted] = useState(false);
 
   useEffect(() => {
     loadFlashcards();
   }, [noteId, studyMode]);
+
+  // Auto-iniciar estudio cuando se cargan las flashcards
+  useEffect(() => {
+    if (!loading && flashcards.length > 0 && !studyModeOpen && !examModeOpen && !hasAutoStarted) {
+      console.log('Auto-iniciando estudio con modo:', studyMode);
+      startStudy();
+      setHasAutoStarted(true);
+    }
+  }, [loading, flashcards.length, studyMode, hasAutoStarted]);
 
   const loadFlashcards = async () => {
     try {
@@ -211,44 +221,25 @@ export default function StudyComponent({ noteId, studyMode, examConfig, onBack }
           <div></div>
         </div>
 
-        {/* Contenido de la nota - Layout idéntico al StudyOnlyInterface */}
-        <div className="flex gap-6">
-          {/* Contenido principal */}
-          <div className="flex-1">
-            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-              <NotePreview content={noteContent} />
+        {/* Contenido condicional: Muestra la nota o el spinner de carga */}
+        {!hasAutoStarted ? (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-slate-400 mb-2">Iniciando estudio...</p>
+              <p className="text-sm text-slate-500">
+                {studyMode === 'traditional' && 'Modo Tradicional'}
+                {studyMode === 'multiple_choice' && 'Modo Múltiple Choice'}
+                {studyMode === 'mixed' && 'Modo Mixto'}
+                {studyMode === 'exam' && `Modo Examen (${examConfig?.questionCount} preguntas, ${examConfig?.timeMinutes}min)`}
+              </p>
             </div>
           </div>
-          
-          {/* Sidebar derecho con info de flashcards */}
-          <div className="w-80">
-            {/* Info de flashcards y botón */}
-            <div className="bg-slate-800 rounded-lg p-4 border border-slate-700 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-sm text-slate-300">
-                  <span>📚 {flashcards.length} flashcards disponibles</span>
-                  <div className="text-blue-400 font-medium mt-1">
-                    {studyMode === 'traditional' && 'Modo Tradicional'}
-                    {studyMode === 'multiple_choice' && 'Modo Múltiple Choice'}
-                    {studyMode === 'mixed' && 'Modo Mixto'}
-                    {studyMode === 'exam' && `Modo Examen (${examConfig?.questionCount} preguntas, ${examConfig?.timeMinutes}min)`}
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    console.log('StudyComponent - Comenzar Estudio clicked, calling startStudy()');
-                    startStudy();
-                  }}
-                  className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors font-medium"
-                >
-                  <AcademicCapIcon className="w-5 h-5" />
-                  <span>🎯 Estudiar</span>
-                </button>
-              </div>
-            </div>
+        ) : (
+          <div className="flex-1 bg-slate-800 rounded-lg p-6 border border-slate-700">
+            <NotePreview content={noteContent} studyMode={true} />
           </div>
-        </div>
+        )}
       </div>
 
       {/* Componente StudyMode */}
@@ -256,7 +247,7 @@ export default function StudyComponent({ noteId, studyMode, examConfig, onBack }
         flashcards={flashcards}
         isOpen={studyModeOpen}
         onClose={closeStudy}
-        title={`Estudio - ${flashcards.length} flashcards`}
+        title={`${flashcards.length} pregunta${flashcards.length !== 1 ? 's' : ''}`}
       />
 
       {/* Componente ExamStudyMode */}
@@ -267,7 +258,7 @@ export default function StudyComponent({ noteId, studyMode, examConfig, onBack }
           isOpen={examModeOpen}
           onClose={() => setExamModeOpen(false)}
           onExamComplete={handleExamComplete}
-          title={`Examen - ${examConfig?.questionCount || examFlashcards.length} preguntas`}
+          title={`${(examConfig?.questionCount || examFlashcards.length)} pregunta${((examConfig?.questionCount || examFlashcards.length) !== 1) ? 's' : ''}`}
         />
       )}
 
@@ -276,7 +267,7 @@ export default function StudyComponent({ noteId, studyMode, examConfig, onBack }
         <ExamResultsModal
           isOpen={showExamResults}
           result={examResult}
-          onClose={() => setShowExamResults(false)}
+          onClose={() => { window.location.href = '/editor'; }}
           onRetry={handleRetryExam}
         />
       )}

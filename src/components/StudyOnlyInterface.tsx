@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import NotePreview from './notes/NotePreview';
 import StudyModeSelector from './notes/StudyModeSelector';
+import { SimpleAnnotation } from './notes/SimpleAnnotation';
+import { StudyHighlightLayer } from './highlights/StudyHighlightLayer';
+import { useStudyHighlights } from '../hooks/useStudyHighlights';
 import { User } from '@supabase/supabase-js';
 import { 
   FolderIcon, 
@@ -11,6 +14,7 @@ import {
   ChevronRightIcon, 
   ChevronDownIcon
 } from "@heroicons/react/24/outline";
+import type { HighlightRecord } from '../lib/supabase/highlights';
 
 interface Folder {
   id: string;
@@ -51,6 +55,34 @@ export default function StudyOnlyInterface({ user }: StudyOnlyInterfaceProps) {
   const [flashcardCount, setFlashcardCount] = useState(0);
   const [traditionalCount, setTraditionalCount] = useState(0);
   const [multipleChoiceCount, setMultipleChoiceCount] = useState(0);
+  const [darkBackground, setDarkBackground] = useState(false);
+  
+  // Highlights system
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [showAnnotation, setShowAnnotation] = useState(false);
+  const [annotationPosition, setAnnotationPosition] = useState({ x: 0, y: 0 });
+  const [currentHighlight, setCurrentHighlight] = useState<HighlightRecord | null>(null);
+  
+  // Use highlights hook
+  const {
+    highlights,
+    loading: highlightsLoading,
+    error: highlightsError,
+    createHighlight,
+    updateHighlight,
+    deleteHighlight
+  } = useStudyHighlights(selectedNote?.id || '');
+
+  // Debug logging for StudyOnlyInterface
+  useEffect(() => {
+    console.log('🏠 StudyOnlyInterface - State:', {
+      selectedNoteId: selectedNote?.id,
+      highlightsCount: highlights.length,
+      highlightsLoading,
+      highlightsError,
+      contentRefCurrent: !!contentRef.current
+    });
+  }, [selectedNote?.id, highlights.length, highlightsLoading, highlightsError, contentRef.current]);
 
   // Logout handler
   const handleSignOut = async () => {
@@ -122,6 +154,57 @@ export default function StudyOnlyInterface({ user }: StudyOnlyInterfaceProps) {
     loadPublicContent();
   }, []);
 
+  // Modificar la función de selección de nota para cerrar el sidebar automáticamente en móvil
+  const selectNote = async (note: Note) => {
+    setSelectedNote(note);
+    
+    // Cerrar sidebar automáticamente cuando se selecciona una nota (solo en móvil)
+    if (window.innerWidth < 768) { // md breakpoint
+      setSidebarCollapsed(true);
+    }
+    
+    try {
+      // Obtener decks vinculados a la nota
+      const { data: deckLinks, error: linksError } = await supabase
+        .from('note_deck_links')
+        .select('deck_id')
+        .eq('note_id', note.id);
+
+      if (linksError) throw linksError;
+
+      if (deckLinks && deckLinks.length > 0) {
+        const deckIds = deckLinks.map(link => link.deck_id);
+        
+        // Contar cards por tipo
+        const { data: cards, error: cardsError } = await supabase
+          .from('cards')
+          .select('id, type')
+          .in('deck_id', deckIds);
+
+        if (cardsError) throw cardsError;
+
+        const traditional = cards?.filter(card => !card.type || card.type === 'traditional').length || 0;
+        const multipleChoice = cards?.filter(card => card.type === 'multiple_choice').length || 0;
+        const total = cards?.length || 0;
+
+        console.log('📊 Conteo de flashcards:', { traditional, multipleChoice, total });
+
+        setTraditionalCount(traditional);
+        setMultipleChoiceCount(multipleChoice);
+        setFlashcardCount(total);
+      } else {
+        setTraditionalCount(0);
+        setMultipleChoiceCount(0);
+        setFlashcardCount(0);
+      }
+    } catch (error) {
+      console.error('Error contando flashcards:', error);
+      setTraditionalCount(0);
+      setMultipleChoiceCount(0);
+      setFlashcardCount(0);
+    }
+  };
+
   const toggleFolder = (folderId: string) => {
     const newExpanded = new Set(expandedFolders);
     if (newExpanded.has(folderId)) {
@@ -151,9 +234,9 @@ export default function StudyOnlyInterface({ user }: StudyOnlyInterfaceProps) {
       const folderNotes = publicNotes.filter(note => note.folder_id === folder.id);
       
       return (
-        <div key={folder.id} className="mb-1">
+        <div key={folder.id} className="mb-2">
           <div 
-            className="flex items-center py-0.5 px-2 hover:bg-slate-800/30 rounded cursor-pointer group transition-all duration-200"
+            className="flex items-center py-1.5 px-2 hover:bg-slate-800/30 rounded cursor-pointer group transition-all duration-200"
             style={{ paddingLeft: `${level * 16 + 8}px` }}
             onClick={() => toggleFolder(folder.id)}
           >
@@ -163,7 +246,9 @@ export default function StudyOnlyInterface({ user }: StudyOnlyInterfaceProps) {
               <ChevronRightIcon className="w-4 h-4 mr-1 text-slate-400 flex-shrink-0" />
             )}
             <FolderIcon className="w-4 h-4 mr-2 text-slate-400 flex-shrink-0" />
-            <span className="text-slate-300 text-sm truncate">{folder.name}</span>
+            <span className="text-slate-300 text-sm truncate" title={folder.name}>
+              {folder.name.length > 18 ? `${folder.name.substring(0, 18)}...` : folder.name}
+            </span>
           </div>
           
           {isExpanded && (
@@ -181,59 +266,20 @@ export default function StudyOnlyInterface({ user }: StudyOnlyInterfaceProps) {
       return (
         <div 
           key={note.id}
-          className={`flex items-center py-0.5 px-2 cursor-pointer group transition-all duration-200 ${
+          className={`flex items-center py-1.5 px-2 cursor-pointer group transition-all duration-200 ${
             isSelected 
               ? "bg-slate-700/20 text-slate-100 border-l-2 border-blue-500" 
               : "text-slate-400 hover:bg-slate-800/30"
           }`}
           style={{ paddingLeft: `${level * 16 + 8}px` }}
           onClick={async () => {
-            setSelectedNote(note);
-            
-            try {
-              // Obtener decks vinculados a la nota
-              const { data: deckLinks, error: linksError } = await supabase
-                .from('note_deck_links')
-                .select('deck_id')
-                .eq('note_id', note.id);
-
-              if (linksError) throw linksError;
-
-              if (deckLinks && deckLinks.length > 0) {
-                const deckIds = deckLinks.map(link => link.deck_id);
-                
-                // Contar cards por tipo
-                const { data: cards, error: cardsError } = await supabase
-                  .from('cards')
-                  .select('id, type')
-                  .in('deck_id', deckIds);
-
-                if (cardsError) throw cardsError;
-
-                const traditional = cards?.filter(card => !card.type || card.type === 'traditional').length || 0;
-                const multipleChoice = cards?.filter(card => card.type === 'multiple_choice').length || 0;
-                const total = cards?.length || 0;
-
-                console.log('📊 Conteo de flashcards:', { traditional, multipleChoice, total });
-
-                setTraditionalCount(traditional);
-                setMultipleChoiceCount(multipleChoice);
-                setFlashcardCount(total);
-              } else {
-                setTraditionalCount(0);
-                setMultipleChoiceCount(0);
-                setFlashcardCount(0);
-              }
-            } catch (error) {
-              console.error('Error contando flashcards:', error);
-              setTraditionalCount(0);
-              setMultipleChoiceCount(0);
-              setFlashcardCount(0);
-            }
+            await selectNote(note);
           }}
         >
           <DocumentTextIcon className="w-4 h-4 mr-2 text-slate-500 flex-shrink-0" />
-          <span className="text-sm truncate">{note.title}</span>
+          <span className="text-sm truncate" title={note.title}>
+            {note.title.length > 20 ? `${note.title.substring(0, 20)}...` : note.title}
+          </span>
         </div>
       );
     };
@@ -276,21 +322,28 @@ export default function StudyOnlyInterface({ user }: StudyOnlyInterfaceProps) {
   }
 
   return (
-    <div className="h-screen bg-[#0B1625] flex">
-      {/* Sidebar con contenido público - Colapsable */}
-      <div className={`${sidebarCollapsed ? 'w-12' : 'w-80'} bg-[#0B1625] border-r border-slate-700 flex flex-col fixed left-0 top-0 h-full z-10 transition-all duration-300`}>
-        <div className="p-4 border-b border-slate-700 bg-[#0B1625] flex items-center justify-between">
+    <div className={`h-screen ${darkBackground ? 'bg-black' : 'bg-[#0B1625]'} flex`}>
+      {/* Overlay oscuro cuando sidebar está abierto en móvil */}
+      {!sidebarCollapsed && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"
+          onClick={() => setSidebarCollapsed(true)}
+        />
+      )}
+
+      {/* Sidebar con contenido público - Colapsable - Pantalla completa en móvil */}
+      <div className={`${sidebarCollapsed ? 'w-0' : 'w-full md:w-64'} ${darkBackground ? 'bg-black' : 'bg-[#0B1625]'} border-r ${darkBackground ? 'border-slate-600' : 'border-slate-700'} flex flex-col fixed left-0 top-0 h-full z-20 transition-all duration-300 overflow-hidden`}>
+        <div className={`p-4 border-b ${darkBackground ? 'border-slate-600' : 'border-slate-700'} ${darkBackground ? 'bg-black' : 'bg-[#0B1625]'} flex items-center justify-between`}>
           {!sidebarCollapsed && (
-            <div>
-              <h1 className="text-slate-200 text-lg font-semibold">📚 Biblioteca de Estudio</h1>
-              <p className="text-slate-400 text-sm mt-1">Contenido público del instructor</p>
-            </div>
+            <h1 className="text-slate-200 text-lg font-semibold">📚 Radio UTN Estudio</h1>
           )}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-slate-200"
           >
-            {sidebarCollapsed ? '→' : '←'}
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
           </button>
         </div>
 
@@ -309,7 +362,7 @@ export default function StudyOnlyInterface({ user }: StudyOnlyInterfaceProps) {
                 <p className="text-xs mt-2">Verifica que haya carpetas/notas marcadas como públicas</p>
               </div>
             ) : (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {buildFolderTree()}
               </div>
             )}
@@ -317,10 +370,10 @@ export default function StudyOnlyInterface({ user }: StudyOnlyInterfaceProps) {
         )}
 
         {!sidebarCollapsed && (
-          <div className="p-4 border-t border-slate-700">
+          <div className={`p-4 border-t ${darkBackground ? 'border-slate-600' : 'border-slate-700'}`}>
             <button
               onClick={handleSignOut}
-              className="w-full px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded text-sm transition-colors"
+              className="w-full px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors"
             >
               Cerrar Sesión
             </button>
@@ -328,47 +381,160 @@ export default function StudyOnlyInterface({ user }: StudyOnlyInterfaceProps) {
         )}
       </div>
 
-      {/* Área principal - Con margen dinámico para sidebar */}
-      <div className={`flex-1 flex flex-col bg-[#0B1625] ${sidebarCollapsed ? 'ml-12' : 'ml-80'} transition-all duration-300`}>
-        {selectedNote ? (
-          <div className="p-6 bg-[#0B1625]">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                {/* Contador de flashcards detallado */}
-                <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/50 px-3 py-1 rounded-lg border border-slate-700/50">
-                  <span>📚 {traditionalCount} flashcards</span>
-                  <span className="text-slate-600">•</span>
-                  <span>✅ {multipleChoiceCount} múltiple choice</span>
-                </div>
-                
-                {/* Botón de estudiar igual que en modo admin */}
-                <button
-                  onClick={() => setShowStudyModal(true)}
-                  disabled={flashcardCount === 0}
-                  className={`px-4 py-2 rounded-lg transition-colors font-medium ${
-                    flashcardCount > 0
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                      : 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                  }`}
-                >
-                  🎯 Estudiar
-                </button>
+
+      {/* Área de contenido principal - Oculta cuando sidebar está abierto en móvil */}
+      <div className={`flex-1 flex flex-col ${sidebarCollapsed ? 'ml-0' : 'md:ml-64'} transition-all duration-300 ${!sidebarCollapsed ? 'md:block hidden' : ''}`}>
+        {/* Menú de botones - Siempre visible en la parte superior */}
+        <div className={`flex items-center gap-2 p-4 ${darkBackground ? 'bg-black' : 'bg-[#0B1625]'} border-b ${darkBackground ? 'border-slate-600' : 'border-slate-700'}`}>
+          {/* 1. Botón para abrir sidebar - Solo visible cuando está colapsado */}
+          {sidebarCollapsed && (
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="p-2 bg-slate-800/90 hover:bg-slate-700/90 rounded-lg transition-all duration-200 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500/50 shadow-lg backdrop-blur-sm"
+              title="Abrir sidebar"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
+
+          {/* 2. Botón Dark Background */}
+          <button
+            onClick={() => setDarkBackground(!darkBackground)}
+            className={`p-2 rounded-lg transition-colors border shadow-lg backdrop-blur-sm ${
+              darkBackground
+                ? 'bg-yellow-600/90 hover:bg-yellow-500/90 border-yellow-500/50 hover:border-yellow-400/50'
+                : 'bg-slate-800/90 hover:bg-slate-700/90 border-slate-600/50 hover:border-slate-500/50'
+            }`}
+            title={darkBackground ? "Modo claro" : "Modo oscuro"}
+          >
+            {darkBackground ? (
+              <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
+          </button>
+
+          {/* 3. Botón Estudiar */}
+          {selectedNote && (
+            <button
+              onClick={() => setShowStudyModal(true)}
+              disabled={flashcardCount === 0}
+              className={`px-3 py-2 rounded-lg transition-colors font-medium border shadow-lg backdrop-blur-sm ${
+                flashcardCount > 0
+                  ? 'bg-blue-600/90 hover:bg-blue-700/90 text-white border-blue-500/50 hover:border-blue-400/50'
+                  : 'bg-slate-700/90 text-slate-500 cursor-not-allowed border-slate-600/50'
+              }`}
+              title="Estudiar flashcards"
+            >
+              <div className="flex items-center gap-1">
+                <span className="text-sm">🎯 {flashcardCount}</span>
+                <span className="text-xs">Estudiar</span>
               </div>
-            </div>
-            <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-              <NotePreview content={selectedNote.content_md} />
+            </button>
+          )}
+        </div>
+
+        {selectedNote ? (
+          <div className={`px-1 md:p-6 ${darkBackground ? 'bg-black' : 'bg-[#0B1625]'}`}>
+            <div className={`${darkBackground ? 'bg-black' : 'bg-slate-800'} w-full md:rounded-lg md:p-6 md:border ${darkBackground ? 'border-transparent' : 'border-slate-700'} border-0 px-1 md:px-0 relative`}>
+              <div ref={contentRef} className="relative">
+                <NotePreview content={selectedNote.content_md} studyMode={true} />
+                
+                {/* Overlay de highlights - solo visible en modo estudio */}
+                <StudyHighlightLayer
+                  rootRef={contentRef}
+                  docId={selectedNote.id}
+                  userId={user.id}
+                  highlights={highlights}
+                  isEnabled={true}
+                  onHighlightClick={(highlight) => {
+                    const rect = contentRef.current?.getBoundingClientRect();
+                    if (rect) {
+                      setAnnotationPosition({ 
+                        x: rect.left + rect.width / 2 - 200, 
+                        y: rect.top + 100 
+                      });
+                      setCurrentHighlight(highlight);
+                      setShowAnnotation(true);
+                    }
+                  }}
+                  onCreateHighlight={async (selector, range) => {
+                    console.log('🏠 StudyOnlyInterface - onCreateHighlight called:', {
+                      selector,
+                      selectedNoteId: selectedNote.id
+                    });
+                    
+                    try {
+                      console.log('📝 Creating highlight with selector:', selector);
+                      const newHighlight = await createHighlight(selector, range);
+                      console.log('✅ Highlight created successfully:', newHighlight);
+                      
+                      // Abrir modal para agregar nota
+                      const rect = range.getBoundingClientRect();
+                      const containerRect = contentRef.current?.getBoundingClientRect();
+                      if (containerRect) {
+                        setAnnotationPosition({ 
+                          x: rect.left - containerRect.left - 160, 
+                          y: rect.top - containerRect.top - 50 
+                        });
+                        setCurrentHighlight(newHighlight);
+                        setShowAnnotation(true);
+                      }
+                    } catch (error) {
+                      console.error('💥 Error creating highlight:', error);
+                    }
+                  }}
+                />
+              </div>
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center bg-[#0B1625]">
+          <div className={`flex-1 flex items-center justify-center ${darkBackground ? 'bg-black' : 'bg-[#0B1625]'} min-h-screen`}>
             <div className="text-center">
               <div className="text-6xl mb-4">📚</div>
               <h2 className="text-slate-200 text-xl font-semibold mb-2">Selecciona una nota para estudiar</h2>
-              <p className="text-slate-400">Elige una nota del sidebar para ver su contenido y estudiar las flashcards</p>
             </div>
           </div>
         )}
       </div>
+      
+      {/* Modal de anotación */}
+      {showAnnotation && currentHighlight && (
+        <SimpleAnnotation
+          position={annotationPosition}
+          onSave={async (noteText) => {
+            try {
+              await updateHighlight(currentHighlight.id, { note_text: noteText });
+              setShowAnnotation(false);
+              setCurrentHighlight(null);
+            } catch (error) {
+              console.error('Error saving annotation:', error);
+            }
+          }}
+          onClose={() => {
+            setShowAnnotation(false);
+            setCurrentHighlight(null);
+          }}
+          onDelete={async () => {
+            try {
+              await deleteHighlight(currentHighlight.id);
+              setShowAnnotation(false);
+              setCurrentHighlight(null);
+            } catch (error) {
+              console.error('Error deleting highlight:', error);
+            }
+          }}
+          isVisible={true}
+          existingNote={currentHighlight.note_text}
+          lineContent={currentHighlight.selector_exact.slice(0, 100)}
+        />
+      )}
       
       {/* Modal de selección de modo de estudio */}
       {showStudyModal && selectedNote && (

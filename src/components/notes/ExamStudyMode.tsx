@@ -10,6 +10,7 @@ import rehypeRaw from "rehype-raw";
 import MermaidRenderer from "./MermaidRenderer";
 import ImageModal from "./ImageModal";
 import CodeHighlighter from "./CodeHighlighter";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 interface ExamStudyModeProps {
   flashcards: ExamFlashcard[];
@@ -133,21 +134,15 @@ export default function ExamStudyMode({
   return (
     <div className="fixed inset-0 bg-gray-900 z-50 flex flex-col">
       <div className="flex-shrink-0 bg-gray-800 border-b border-gray-700">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              ←
-            </button>
-            <div>
-              <h1 className="text-lg font-semibold text-white">Modo Examen</h1>
-              <p className="text-sm text-gray-400">{title}</p>
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4">
+              <h2 className="text-base font-medium text-white">Modo Examen</h2>
+              <span className="text-sm text-gray-400">{title}</span>
             </div>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 whitespace-nowrap">
             <ExamTimer
               initialTimeSeconds={timeMinutes * 60}
               isRunning={isTimerRunning}
@@ -162,6 +157,13 @@ export default function ExamStudyMode({
             <div className="text-sm text-gray-400">
               {currentIndex + 1} / {examFlashcards.length}
             </div>
+            <button
+              onClick={() => window.location.href = '/editor'}
+              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-medium px-3 py-1 rounded-lg hover:bg-slate-700"
+            >
+              <ArrowLeftIcon className="w-4 h-4" />
+              <span>Volver</span>
+            </button>
           </div>
         </div>
       </div>
@@ -221,7 +223,7 @@ export default function ExamStudyMode({
                 </div>
 
                 <div className="absolute inset-0 backface-hidden rotate-y-180">
-                  <div className="bg-slate-700 border-l-4 border-blue-500 rounded-lg h-full flex flex-col p-6">
+                  <div className="bg-slate-700 rounded-lg h-full flex flex-col p-6">
                     <h3 className="font-medium text-white mb-4 text-center flex-shrink-0">Respuesta:</h3>
                     <div className="flex-1 overflow-y-auto scrollbar-hide px-2 pt-8">
                       <div className="w-full">

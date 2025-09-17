@@ -533,6 +533,42 @@ export default function NoteEditor({
     {
       key: "Backspace",
       run: (view) => {
+        const handleRemoveColor = () => {
+          if (!editorRef.current?.view) return;
+          
+          const editor = editorRef.current.view;
+          const { from, to } = editor.state.selection.main;
+          const doc = editor.state.doc;
+          const text = doc.toString();
+          
+          // Buscar patrones de color que incluyan la selección
+          const colorRegex = /\{(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\|([^}]*)\}/g;
+          let match;
+          
+          while ((match = colorRegex.exec(text)) !== null) {
+            const startPos = match.index;
+            const endPos = startPos + match[0].length;
+            const innerStart = startPos + match[0].indexOf('|') + 1;
+            const innerEnd = innerStart + match[2].length;
+            
+            // Si la selección está dentro del texto coloreado
+            if ((from >= innerStart && from <= innerEnd) || (to >= innerStart && to <= innerEnd)) {
+              const innerText = match[2];
+              
+              editor.dispatch({
+                changes: {
+                  from: startPos,
+                  to: endPos,
+                  insert: innerText
+                },
+                selection: { anchor: startPos, head: startPos + innerText.length }
+              });
+              return;
+            }
+          }
+        };
+
+
         const { from, to } = view.state.selection.main;
         if (from !== to) return false; // Si hay selección, comportamiento normal
         
@@ -1366,6 +1402,38 @@ export default function NoteEditor({
     return view.state.doc.slice(from, to).toString();
   };
 
+  const handleEmojiInsert = (emoji: string) => {
+    if (!editorRef.current?.view) return;
+    
+    const editor = editorRef.current.view;
+    const { from, to } = editor.state.selection.main;
+    
+    editor.dispatch({
+      changes: {
+        from,
+        to,
+        insert: emoji
+      },
+      selection: { anchor: from + emoji.length }
+    });
+  };
+
+  const handleStructureInsert = (structure: string) => {
+    if (!editorRef.current?.view) return;
+    
+    const editor = editorRef.current.view;
+    const { from, to } = editor.state.selection.main;
+    
+    editor.dispatch({
+      changes: {
+        from,
+        to,
+        insert: structure
+      },
+      selection: { anchor: from + structure.length }
+    });
+  };
+
   // Manejadores de teclado para Alt+Q y Alt+A
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1597,8 +1665,8 @@ export default function NoteEditor({
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><line x1="2" x2="22" y1="12" y2="12"/></svg>
         </button>
-        
-        {/* Separador entre formato y controles */}
+
+        {/* Separador entre formato y controles (ajustado tras eliminar emojis/estructuras) */}
         <div className="w-px h-4 bg-gray-600/50 mx-2"></div>
         
         {/* Botones de control */}
@@ -1682,28 +1750,25 @@ export default function NoteEditor({
           <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
 
           {/* Información de flashcards */}
-          {flashcardCount > 0 && (
-            <>
-              <span className="text-xs text-blue-400 bg-blue-900/30 px-2 py-1 rounded">
-                📚 {flashcardCount} flashcards
-              </span>
-              <button
-                onClick={() => setShowFlashcardViewer(true)}
-                title="Ver flashcards"
-                className="px-2 py-1 text-xs bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
-              >
-                Ver
-              </button>
-              <button
-                onClick={() => setShowStudyModeSelector(true)}
-                title="Estudiar flashcards"
-                className="px-2 py-1 text-xs bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
-              >
-                Estudiar
-              </button>
-              <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
-            </>
-          )}
+          <span className="text-xs text-blue-400 bg-blue-900/30 px-2 py-1 rounded">
+            📚 {flashcardCount} flashcards
+          </span>
+          <button
+            onClick={() => setShowFlashcardViewer(true)}
+            title="Ver y crear flashcards"
+            className="px-2 py-1 text-xs bg-green-700 hover:bg-green-600 text-white rounded transition-colors"
+          >
+            Ver
+          </button>
+          <button
+            onClick={() => flashcardCount > 0 && setShowStudyModeSelector(true)}
+            title="Estudiar flashcards"
+            disabled={flashcardCount === 0}
+            className="px-2 py-1 text-xs bg-green-700 hover:bg-green-600 text-white rounded transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+          >
+            Estudiar
+          </button>
+          <div className="w-px h-4 bg-gray-600/50 mx-1"></div>
 
 
           {/* Información de palabras */}
@@ -1796,7 +1861,7 @@ export default function NoteEditor({
               maxWidth: '100%'
             }} ref={previewContainerRef}>
               <div className="px-6 py-4">
-                <NotePreview content={content} onWikiLinkClick={handleWikiLinkClick} studyMode={false} />
+                <NotePreview content={content} onWikiLinkClick={handleWikiLinkClick} studyMode={true} noteId={noteId} userId={userId} />
               </div>
             </div>
           </div>
@@ -1863,7 +1928,7 @@ export default function NoteEditor({
         ) : (
           <div className="w-full h-full" style={{ overflow: 'auto' }}>
             <div className="max-w-5xl mx-auto px-6 py-4">
-              <NotePreview content={content} onWikiLinkClick={handleWikiLinkClick} studyMode={false} />
+              <NotePreview content={content} onWikiLinkClick={handleWikiLinkClick} studyMode={true} noteId={noteId} userId={userId} />
             </div>
           </div>
         )}

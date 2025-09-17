@@ -998,70 +998,17 @@ Escribe aquí tu contenido...`;
             }
           }}
           onDoubleClick={() => {
-            if (item.type === "folder") {
-              startRename(item);
-            }
+            startRename(item);
           }}
         >
           {item.type === "folder" && (
             <>
-              {isExpanded ? (
-                <ChevronDownIcon className="w-4 h-4 mr-1" />
-              ) : (
-                <ChevronRightIcon className="w-4 h-4 mr-1" />
-              )}
-              <FolderIcon className="w-4 h-4 mr-2 text-gray-400" />
-              {/* Public/Private indicator for admin */}
-              {isAdmin && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleFolderPublicStatus(item.id);
-                  }}
-                  className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title={folders.find(f => f.id === item.id)?.is_public ? "Hacer privada" : "Hacer pública"}
-                >
-                  {folders.find(f => f.id === item.id)?.is_public ? (
-                    <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 5.73 6.974 6 7.5 6A1.5 1.5 0 019 7.5V8a2 2 0 004 0 2 2 0 011.523-1.943A5.977 5.977 0 0116 10c0 3.314-2.686 6-6 6s-6-2.686-6-6a4.75 4.75 0 01.332-1.973z" clipRule="evenodd" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </button>
-              )}
+              <FolderIcon className="w-3 h-3 mr-2 text-gray-400" />
             </>
           )}
           {item.type === "note" && (
             <>
-              {/* Checkbox for selection */}
-              <div
-                className={`mr-2 ml-5 checkbox-container transition-opacity duration-200 ${
-                  isSelectionMode || isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                }`}
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  toggleNoteSelection(item.id);
-                  setIsSelectionMode(true);
-                }}
-              >
-                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center cursor-pointer transition-all duration-200 ${
-                  isSelected 
-                    ? 'bg-blue-500 border-blue-500 scale-110' 
-                    : 'border-gray-500 hover:border-gray-300 hover:bg-gray-700'
-                }`}>
-                  {isSelected && (
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-              </div>
-              <DocumentTextIcon className="w-4 h-4 mr-2 text-gray-400" />
+              <DocumentTextIcon className="w-3 h-3 mr-2 text-gray-400" />
             </>
           )}
           {editingItem?.id === item.id ? (
@@ -1077,76 +1024,95 @@ Escribe aquí tu contenido...`;
             />
           ) : (
             <div className="flex items-center justify-between flex-1 min-w-0">
-              <span className="text-sm flex-1 overflow-hidden mr-2">
+              <span className="text-xs flex-1 overflow-hidden mr-2">
                 <span className="block truncate" title={item.name}>
-                  {item.name.length > 15 ? `${item.name.substring(0, 15)}...` : item.name}
+                  {item.name.length > 20 ? `${item.name.substring(0, 20)}...` : item.name}
                 </span>
               </span>
-            </div>
-          )}
-          {item.type === "note" && editingItem?.id !== item.id && (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startRename(item);
-                }}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-white"
-                title="Renombrar nota"
-              >
-                <PencilIcon className="w-3 h-3" />
-              </button>
-              <button
-                onClick={(e) => deleteNote(item.id, e)}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-600 rounded text-gray-400 hover:text-white"
-                title="Eliminar nota"
-              >
-                <TrashIcon className="w-3 h-3" />
-              </button>
-            </div>
-          )}
-          {item.type === "folder" && editingItem?.id !== item.id && (
-            <div className="flex items-center gap-1 flex-shrink-0">
-              {isAdmin && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleFolderPublicStatus(item.id);
-                  }}
-                  className={`opacity-0 group-hover:opacity-100 p-1 rounded transition-colors ${
-                    folders.find(f => f.id === item.id)?.is_public
-                      ? "bg-blue-600 hover:bg-blue-500 text-white" 
-                      : "bg-gray-600 hover:bg-gray-500 text-white"
-                  }`}
-                  title={folders.find(f => f.id === item.id)?.is_public ? "Marcar como privada" : "Marcar como pública"}
-                >
-                  {folders.find(f => f.id === item.id)?.is_public ? "🌐" : "🔒"}
-                </button>
+              {item.type === "folder" && (
+                <div className="flex items-center gap-1 ml-auto">
+                  {/* Public/Private indicator for admin */}
+                  {isAdmin && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFolderPublicStatus(item.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      title={folders.find(f => f.id === item.id)?.is_public ? "Hacer privada" : "Hacer pública"}
+                    >
+                      {folders.find(f => f.id === item.id)?.is_public ? (
+                        <svg className="w-3 h-3 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM4.332 8.027a6.012 6.012 0 011.912-2.706C6.512 5.73 6.974 6 7.5 6A1.5 1.5 0 019 7.5V8a2 2 0 004 0 2 2 0 011.523-1.943A5.977 5.977 0 0116 10c0 3.314-2.686 6-6 6s-6-2.686-6-6a4.75 4.75 0 01.332-1.973z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <svg className="w-3 h-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => deleteFolder(item.id, e)}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-red-400"
+                    title="Eliminar carpeta"
+                  >
+                    <TrashIcon className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      onNewNote(item.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded text-gray-300"
+                    title="Nueva nota"
+                  >
+                    <PlusIcon className="w-3 h-3" />
+                  </button>
+                  {isExpanded ? (
+                    <ChevronDownIcon className="w-3 h-3 text-gray-400" />
+                  ) : (
+                    <ChevronRightIcon className="w-3 h-3 text-gray-400" />
+                  )}
+                </div>
               )}
-              <button
-                onClick={(e) => deleteFolder(item.id, e)}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded text-gray-400 hover:text-red-400"
-                title="Eliminar carpeta"
-              >
-                <TrashIcon className="w-3 h-3" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  console.log("Creating note in folder:", item.id);
-                  onNewNote(item.id);
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  console.log("Mouse down on + button");
-                }}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-700 rounded text-gray-300 cursor-pointer"
-                title="Nueva nota"
-                style={{ pointerEvents: 'auto', zIndex: 20 }}
-              >
-                <PlusIcon className="w-3 h-3" />
-              </button>
+              {item.type === "note" && (
+                <div className="flex items-center gap-1 ml-auto">
+                  {/* Checkbox for selection */}
+                  <div
+                    className={`checkbox-container transition-opacity duration-200 ${
+                      isSelectionMode || isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    }`}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      toggleNoteSelection(item.id);
+                      setIsSelectionMode(true);
+                    }}
+                  >
+                    <div className={`w-3 h-3 rounded border-2 flex items-center justify-center cursor-pointer transition-all duration-200 ${
+                      isSelected 
+                        ? 'bg-blue-500 border-blue-500 scale-110' 
+                        : 'border-gray-500 hover:border-gray-300 hover:bg-gray-700'
+                    }`}>
+                      {isSelected && (
+                        <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => deleteNote(item.id, e)}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-600 rounded text-gray-400 hover:text-white"
+                    title="Eliminar nota"
+                  >
+                    <TrashIcon className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

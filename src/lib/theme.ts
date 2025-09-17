@@ -20,12 +20,12 @@
  */
 
 export const headerColors = {
-  h1: '#F5F5F5', // Blanco hueso
-  h2: '#B0B0B0', // Gris claro
-  h3: '#D0D0D0', // Gris medio claro
-  h4: '#9A9A9A', // Gris medio
-  h5: '#6E6E6E', // Gris oscuro
-  h6: '#3D3D3D', // Gris muy oscuro
+  h1: '#f8fafc', // Blanco casi puro - como en el ejemplo
+  h2: '#60a5fa', // Azul brillante - como en el ejemplo
+  h3: '#8b5cf6', // Violeta - como en el ejemplo
+  h4: '#10b981', // Verde esmeralda - como en el ejemplo
+  h5: '#f59e0b', // Ámbar/naranja - como en el ejemplo
+  h6: '#d1d5db', // Gris claro - como en el ejemplo
 };
 
 /**
@@ -33,12 +33,12 @@ export const headerColors = {
  * Cambiar aquí afecta editor y modo estudio automáticamente.
  */
 export const headerSizes = {
-  h1: '2.2rem',   // 35.2px aprox.
-  h2: '1.9rem',   // 30.4px aprox.
-  h3: '1.6rem',   // 25.6px aprox.
-  h4: '1.3rem',   // 20.8px aprox.
-  h5: '1.1rem',   // 17.6px aprox.
-  h6: '0.9rem',   // 14.4px aprox.
+  h1: '2.0rem',   // 2em del ejemplo
+  h2: '1.5rem',   // 1.5em del ejemplo
+  h3: '1.3rem',   // 1.3em del ejemplo
+  h4: '1.15rem',  // 1.15em del ejemplo
+  h5: '1.05rem',  // 1.05em del ejemplo
+  h6: '0.95rem',  // 0.95em del ejemplo
 };
 
 /**
@@ -46,31 +46,31 @@ export const headerSizes = {
  * Se escalan automáticamente cuando cambias el tamaño de fuente.
  */
 export const headerSizesStudy = {
-  h1: '1.6em',    // más compacto para móvil
-  h2: '1.4em',
-  h3: '1.2em',
-  h4: '1.1em',
-  h5: '1.05em',
-  h6: '1em',
+  h1: '2.0em',    // 2em del ejemplo - más grande para móvil
+  h2: '1.5em',    // 1.5em del ejemplo
+  h3: '1.3em',    // 1.3em del ejemplo
+  h4: '1.15em',   // 1.15em del ejemplo
+  h5: '1.05em',   // 1.05em del ejemplo
+  h6: '0.95em',   // 0.95em del ejemplo
 };
 
 /**
  * Pesos de fuente para cada nivel de header.
  */
 export const headerWeights = {
-  h1: '700',      // H1: peso 700
-  h2: '600',      // H2: peso 600
-  h3: '600',      // H3: peso 600
-  h4: '500',      // H4: peso 500
-  h5: '500',      // H5: peso 500
-  h6: '500',      // H6: peso 500
+  h1: '700',      // H1: peso 700 - como en el ejemplo
+  h2: '600',      // H2: peso 600 - como en el ejemplo
+  h3: '600',      // H3: peso 600 - como en el ejemplo
+  h4: '600',      // H4: peso 600 - como en el ejemplo
+  h5: '600',      // H5: peso 600 - como en el ejemplo
+  h6: '500',      // H6: peso 500 - como en el ejemplo
 };
 
 export const headerTextClasses: Record<number, string> = {
-  1: 'text-[#F5F5F5]', // H1 - Blanco hueso
-  2: 'text-[#B0B0B0]', // H2 - Gris claro
-  3: 'text-[#D0D0D0]', // H3 - Gris medio claro
-  4: 'text-[#9A9A9A]', // H4 - Gris medio
-  5: 'text-[#6E6E6E]', // H5 - Gris oscuro
-  6: 'text-[#3D3D3D]', // H6 - Gris muy oscuro
+  1: 'text-[#f8fafc]', // H1 - Blanco casi puro - como en el ejemplo
+  2: 'text-[#60a5fa]', // H2 - Azul brillante - como en el ejemplo
+  3: 'text-[#8b5cf6]', // H3 - Violeta - como en el ejemplo
+  4: 'text-[#10b981]', // H4 - Verde esmeralda - como en el ejemplo
+  5: 'text-[#f59e0b]', // H5 - Ámbar/naranja - como en el ejemplo
+  6: 'text-[#d1d5db]', // H6 - Gris claro - como en el ejemplo
 };

@@ -104,10 +104,18 @@ export function calculateExamResult(
 }
 
 // Función para formatear tiempo en mm:ss
-export function formatTime(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+export function formatTime(timeInSeconds: number): string {
+  if (isNaN(timeInSeconds) || timeInSeconds < 0) {
+    return "00:00";
+  }
+
+  const minutes = Math.floor(timeInSeconds / 60);
+  const seconds = Math.floor(timeInSeconds % 60);
+
+  const formattedMinutes = String(minutes).padStart(2, '0');
+  const formattedSeconds = String(seconds).padStart(2, '0');
+
+  return `${formattedMinutes}:${formattedSeconds}`;
 }
 
 // Función para verificar si una respuesta es correcta

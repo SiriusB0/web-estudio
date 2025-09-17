@@ -407,8 +407,8 @@ export default function MixedStudyMode({
 
                       {/* Back Side */}
                       <div className="absolute inset-0 backface-hidden rotate-y-180">
-                        <div className={`rounded-lg border-l-4 h-full flex flex-col ${
-                          isMobile ? 'bg-slate-700 border-slate-400 p-4' : 'bg-gray-800 border-blue-500 p-4'
+                        <div className={`rounded-lg h-full flex flex-col ${
+                          isMobile ? 'bg-slate-700 p-4' : 'bg-gray-800 p-4'
                         }`}>
                           <h3 className={`font-medium text-white mb-3 ${
                             isMobile ? 'text-base text-center' : 'text-lg'

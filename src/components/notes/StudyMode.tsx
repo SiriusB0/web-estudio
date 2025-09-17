@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import MermaidRenderer from "./MermaidRenderer";
 import MultipleChoiceStudyCard from "./MultipleChoiceStudyCard";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 interface StudyModeProps {
   flashcards: Flashcard[];
@@ -261,10 +262,11 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
               <span className="text-amber-400">❓ {doubtCount}</span>
             </div>
             <button
-              onClick={onClose}
-              className="text-slate-400 hover:text-white transition-colors text-xl ml-2"
+              onClick={() => window.location.href = '/editor'}
+              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm font-medium px-3 py-1 rounded-lg hover:bg-slate-700"
             >
-              ✕
+              <ArrowLeftIcon className="w-4 h-4" />
+              <span>Volver</span>
             </button>
           </div>
         </div>
@@ -365,7 +367,7 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
 
                         {/* Back Side */}
                         <div className="absolute inset-0 backface-hidden rotate-y-180">
-                          <div className="bg-slate-700 border-l-4 border-blue-500 rounded-lg h-full flex flex-col p-6">
+                          <div className="bg-slate-700 rounded-lg h-full flex flex-col p-6">
                             <h3 className="font-medium text-white mb-4 text-center flex-shrink-0">Respuesta:</h3>
                             <div className="flex-1 overflow-y-auto scrollbar-hide px-2">
                               <div className="w-full">
@@ -405,7 +407,7 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
                         <div className="flex gap-6">
                           <button
                             onClick={() => handleAnswer(false)}
-                            className="w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 transition-all hover:scale-105 flex items-center justify-center shadow-lg"
+                            className="w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 transition-all hover:scale-105 active:scale-95 active:bg-red-800 flex items-center justify-center shadow-lg transform"
                             title="No acerté"
                           >
                             <svg width="20" height="20" viewBox="0 0 40 40" className="text-white">
@@ -416,7 +418,7 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
                           </button>
                           <button
                             onClick={() => handleAnswer(null)}
-                            className="w-12 h-12 rounded-full bg-amber-600 hover:bg-amber-700 transition-all hover:scale-105 flex items-center justify-center shadow-lg"
+                            className="w-12 h-12 rounded-full bg-amber-600 hover:bg-amber-700 transition-all hover:scale-105 active:scale-95 active:bg-amber-800 flex items-center justify-center shadow-lg transform"
                             title="Duda"
                           >
                             <svg width="20" height="20" viewBox="0 0 40 40" className="text-white">
@@ -428,7 +430,7 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
                           </button>
                           <button
                             onClick={() => handleAnswer(true)}
-                            className="w-12 h-12 rounded-full bg-green-600 hover:bg-green-700 transition-all hover:scale-105 flex items-center justify-center shadow-lg"
+                            className="w-12 h-12 rounded-full bg-green-600 hover:bg-green-700 transition-all hover:scale-105 active:scale-95 active:bg-green-800 flex items-center justify-center shadow-lg transform"
                             title="Acerté"
                           >
                             <svg width="20" height="20" viewBox="0 0 40 40" className="text-white">
