@@ -159,7 +159,9 @@ export async function saveFlashcard(flashcard: Flashcard, deckId: string): Promi
 // Obtener flashcards de una nota
 export async function getFlashcardsForNote(noteId: string): Promise<Flashcard[]> {
   try {
-    const { data } = await supabase
+    console.log('🔍 Buscando flashcards para noteId:', noteId);
+    
+    const { data, error } = await supabase
       .from('note_deck_links')
       .select(`
         deck_id,
@@ -182,7 +184,22 @@ export async function getFlashcardsForNote(noteId: string): Promise<Flashcard[]>
       `)
       .eq('note_id', noteId);
 
-    if (!data || data.length === 0) return [];
+    if (error) {
+      console.error('❌ Error en consulta de flashcards:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      throw error;
+    }
+
+    console.log('📊 Datos de flashcards recibidos:', data);
+
+    if (!data || data.length === 0) {
+      console.log('📭 No se encontraron flashcards para esta nota');
+      return [];
+    }
 
     const flashcards: Flashcard[] = [];
     data.forEach((link: any) => {
@@ -191,10 +208,11 @@ export async function getFlashcardsForNote(noteId: string): Promise<Flashcard[]>
       }
     });
 
+    console.log('✅ Flashcards procesadas:', flashcards.length);
     return flashcards;
   } catch (error) {
-    console.error('Error obteniendo flashcards:', error);
-    return [];
+    console.error('💥 Error obteniendo flashcards:', error);
+    throw error; // Re-lanzar el error para que se maneje arriba
   }
 }
 

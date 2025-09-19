@@ -3,9 +3,8 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { headerTextClasses, headerSizes, headerSizesStudy, headerWeights } from "../../lib/theme";
-import { Highlight, themes } from "prism-react-renderer";
 import { SimpleAnnotation } from "./SimpleAnnotation";
 import { supabase } from '@/lib/supabaseClient';
 import { HighlightRecord } from '@/lib/supabase/highlights';
@@ -13,6 +12,7 @@ import { useStudyHighlights } from '@/hooks/useStudyHighlights';
 import { StudyHighlightLayer } from '@/components/highlights/StudyHighlightLayer';
 import { uploadFlashcardImage } from '@/lib/notes/flashcards';
 import MermaidRenderer from "./MermaidRenderer";
+import UnifiedCodeBlock from "./UnifiedCodeBlock";
 
 // Interface para datos de highlight con imágenes
 interface StudyHighlight extends Omit<HighlightRecord, 'images'> {
@@ -26,6 +26,73 @@ async function uploadImageToSupabase(file: File): Promise<string> {
     throw new Error('Failed to upload image');
   }
   return imageUrl;
+}
+
+// Función para detectar lenguaje de programación automáticamente
+function detectCodeLanguage(code: string): string {
+  const trimmedCode = code.trim();
+  
+  // C/C++
+  if (trimmedCode.includes('#include') || 
+      trimmedCode.includes('cout <<') || 
+      trimmedCode.includes('cin >>') ||
+      /\b(int|float|double|char|void)\s+\w+/.test(trimmedCode) ||
+      trimmedCode.includes('for(') ||
+      trimmedCode.includes('printf(') ||
+      trimmedCode.includes('scanf(')) {
+    return 'cpp';
+  }
+  
+  // Java
+  if (trimmedCode.includes('public class') ||
+      trimmedCode.includes('System.out.println') ||
+      trimmedCode.includes('public static void main') ||
+      /\b(public|private|protected)\s+(static\s+)?(void|int|String)/.test(trimmedCode)) {
+    return 'java';
+  }
+  
+  // Python
+  if (trimmedCode.includes('def ') ||
+      trimmedCode.includes('import ') ||
+      trimmedCode.includes('print(') ||
+      trimmedCode.includes('if __name__') ||
+      /^\s*def\s+\w+/.test(trimmedCode) ||
+      /^\s*class\s+\w+/.test(trimmedCode)) {
+    return 'python';
+  }
+  
+  // JavaScript
+  if (trimmedCode.includes('function ') ||
+      trimmedCode.includes('const ') ||
+      trimmedCode.includes('let ') ||
+      trimmedCode.includes('var ') ||
+      trimmedCode.includes('console.log') ||
+      trimmedCode.includes('=>') ||
+      trimmedCode.includes('document.') ||
+      trimmedCode.includes('window.')) {
+    return 'javascript';
+  }
+  
+  // HTML
+  if (trimmedCode.includes('<html') ||
+      trimmedCode.includes('<!DOCTYPE') ||
+      /<\w+[^>]*>/.test(trimmedCode)) {
+    return 'html';
+  }
+  
+  // CSS
+  if (trimmedCode.includes('{') && trimmedCode.includes('}') &&
+      (trimmedCode.includes(':') || trimmedCode.includes(';'))) {
+    return 'css';
+  }
+  
+  // SQL
+  if (/\b(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/i.test(trimmedCode)) {
+    return 'sql';
+  }
+  
+  // Si no se detecta, usar texto plano
+  return 'text';
 }
 
 interface Section {
@@ -391,6 +458,9 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
       .replace(/\]\]\]\]+/g, ']]')  // Múltiples ]] extra
       .replace(/\[\[\[\[+/g, '[[');  // Múltiples [[ extra
     
+    // Filtrar tags HTML problemáticos que no son válidos (como <iostream>, <vector>, etc.)
+    cleanContent = cleanContent.replace(/<(iostream|vector|string|algorithm|cmath|cstdio|stdio\.h|stdlib\.h|math\.h|limits\.h|climits|cassert|assert\.h|memory|queue|stack|set|map|unordered_map|unordered_set|bitset|deque|list|forward_list|array|tuple|utility|functional|numeric|random|chrono|thread|mutex|condition_variable|future|atomic|regex|fstream|sstream|iomanip)>/g, '&lt;$1&gt;');
+    
     // Procesar wikilinks normales
     cleanContent = cleanContent.replace(/\[\[([^\]]+)\]\]/g, (match, linkText) => {
       const cleaned = linkText.trim();
@@ -402,12 +472,6 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
     cleanContent = cleanContent.replace(/\{(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\|([^}]*)\}/g, (match, color, text) => {
       return `<span style="color: ${color}">${text}</span>`;
     });
-    
-    // Primero procesar divisores antes de convertir saltos de línea
-    cleanContent = cleanContent.replace(/^([-*]{3,})\s*$/gm, '<hr class="my-6 border-t-2 border-gray-500 opacity-60">');
-    
-    // Luego convertir todos los saltos de línea en <br> tags para preservar múltiples saltos
-    cleanContent = cleanContent.replace(/\n/g, '<br>');
     
     return cleanContent;
   };
@@ -443,16 +507,21 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
     },
     code: ({ node, inline, className, children, ...props }: any) => {
       const match = /language-(\w+)/.exec(className || "");
-      if (!inline && match) {
-        const language = match[1] as any;
+      if (!inline) {
         const code = String(children).replace(/\n$/, "");
+        let language = match ? match[1] : null;
+        
+        // Si no hay lenguaje especificado, intentar detectar automáticamente
+        if (!language) {
+          language = detectCodeLanguage(code);
+        }
         
         // Renderizar diagramas Mermaid
         if (language === 'mermaid') {
           return <MermaidRenderer chart={code} />;
         }
         
-        return <CodeBlock code={code} language={language} />;
+        return <UnifiedCodeBlock code={code} language={language || 'text'} maxHeight="600px" />;
       }
       return (
         <code className={`bg-gray-700 text-gray-200 px-1 py-0.5 rounded font-mono ${
@@ -462,13 +531,13 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
         </code>
       );
     },
-    p: ({ children }: any) => {
+    p: ({ children, node }: any) => {
       // Crear ID estable basado en el contenido del párrafo
       const textContent = typeof children === 'string' ? children : 
         Array.isArray(children) ? children.join('') : String(children);
       const lineId = `paragraph-${textContent.slice(0, 50).replace(/\s+/g, '-').toLowerCase()}`;
       const hasAnnotation = annotations.some(ann => ann.lineId === lineId);
-      const showButton = hoveredLineId === lineId;
+      const showButton = false; // Deshabilitado: hoveredLineId === lineId;
 
       // Estilos optimizados para móvil cuando studyMode es true
       const dynamicSize = getComputedStyle(document.documentElement).getPropertyValue('--dynamic-text-size') || '1rem';
@@ -501,42 +570,42 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
         setHoveredLineId('');
       };
 
+      // En modo estudio, usar div para evitar problemas de anidamiento
+      // En modo normal, usar p para semántica correcta
+      const Tag = studyMode ? 'div' : 'p';
+
       return (
-        <div 
-          className="relative inline-block w-full"
+        <Tag 
+          className={`text-gray-300 leading-relaxed mb-3 whitespace-pre-wrap relative ${
+            studyMode ? 'text-base sm:text-lg text-justify' : ''
+          }`}
+          style={mobileStyles}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          <p 
-            className={`text-gray-300 leading-relaxed mb-3 whitespace-pre-wrap ${
-              studyMode ? 'text-base sm:text-lg text-justify' : ''
-            }`}
-            style={mobileStyles}
-          >
-            {children}
-            
-            {/* Icono de nota existente */}
-            {hasAnnotation && (
-              <button
-                className="ml-2 w-4 h-4 text-gray-400 hover:text-gray-200 opacity-50 hover:opacity-80 transition-all inline-flex items-center justify-center align-top"
-                data-line-id={lineId}
-                onClick={(e) => {
-                  const annotation = annotations.find(ann => ann.lineId === lineId);
-                  if (annotation) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setAnnotationPosition({ x: rect.left - 320, y: rect.top });
-                    setEditingAnnotationId(annotation.id);
-                    setShowAnnotation(true);
-                    setCurrentLineId(lineId);
-                  }
-                }}
-                title="Ver/editar anotación"
-              >
-                📄
-              </button>
-            )}
-          </p>
-        </div>
+          {children}
+          
+          {/* Icono de nota existente */}
+          {hasAnnotation && (
+            <button
+              className="ml-2 w-4 h-4 text-gray-400 hover:text-gray-200 opacity-50 hover:opacity-80 transition-all inline-flex items-center justify-center align-top"
+              data-line-id={lineId}
+              onClick={(e) => {
+                const annotation = annotations.find(ann => ann.lineId === lineId);
+                if (annotation) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setAnnotationPosition({ x: rect.left - 320, y: rect.top });
+                  setEditingAnnotationId(annotation.id);
+                  setShowAnnotation(true);
+                  setCurrentLineId(lineId);
+                }
+              }}
+              title="Ver/editar anotación"
+            >
+              📄
+            </button>
+          )}
+        </Tag>
       );
     },
     li: ({ children }: any) => {
@@ -545,7 +614,7 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
         Array.isArray(children) ? children.join('') : String(children);
       const lineId = `listitem-${textContent.slice(0, 50).replace(/\s+/g, '-').toLowerCase()}`;
       const hasAnnotation = annotations.some(ann => ann.lineId === lineId);
-      const showButton = hoveredLineId === lineId;
+      const showButton = false; // Deshabilitado: hoveredLineId === lineId;
       
       // Estilos móviles para elementos de lista
       const listItemStyles = studyMode ? {
@@ -642,10 +711,10 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
       }`}>{children}</ol>
     ),
     hr: ({ ...props }: any) => (
-      <hr className="my-8 border-t-2 border-gray-500 opacity-60" {...props} />
+      <hr className="my-6 border-t-2 border-gray-500 opacity-60" {...props} />
     ),
     thematicBreak: ({ ...props }: any) => (
-      <hr className="my-8 border-t-2 border-gray-500 opacity-60" {...props} />
+      <hr className="my-6 border-t-2 border-gray-500 opacity-60" {...props} />
     )
   };
 
@@ -660,9 +729,9 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
       return (
         <div key={section.id}>
           <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={[rehypeRaw]}
-            components={renderMarkdownComponents}
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeRaw]}
+          components={renderMarkdownComponents}
           >
             {processContent(section.content.join('\n'))}
           </ReactMarkdown>
@@ -777,50 +846,6 @@ export default function NotePreview({ content, onWikiLinkClick, studyMode = fals
     );
   };
 
-  // Bloque de código con Prism (tema Night Owl) y botón copiar
-  function CodeBlock({ code, language }: { code: string; language: string }) {
-    const [copied, setCopied] = useState(false);
-
-    const handleCopy = async () => {
-      try {
-        await navigator.clipboard.writeText(code);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1200);
-      } catch (e) {
-        console.error("Copy failed", e);
-      }
-    };
-
-    return (
-      <div className="relative group my-3 overflow-hidden rounded-lg border border-gray-700/60 bg-[#011627]">
-        <button
-          onClick={handleCopy}
-          className="absolute right-2 top-2 z-10 rounded-md bg-gray-800/80 px-2 py-1 text-xs text-gray-200 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-700"
-          aria-label="Copiar código"
-          type="button"
-        >
-          {copied ? "Copiado" : "Copiar"}
-        </button>
-        <Highlight
-          code={code}
-          language={language as any}
-          theme={themes.nightOwl}
-        >
-          {({ className, style, tokens, getLineProps, getTokenProps }) => (
-            <pre className={`${className} m-0 max-h-[600px] overflow-auto p-4 text-sm`} style={style}>
-              {tokens.map((line, i) => (
-                <div key={i} {...getLineProps({ line })}>
-                  {line.map((token, key) => (
-                    <span key={key} {...getTokenProps({ token })} />
-                  ))}
-                </div>
-              ))}
-            </pre>
-          )}
-        </Highlight>
-      </div>
-    );
-  }
 
   const handleSaveAnnotation = (note: string) => {
     let updatedAnnotations;

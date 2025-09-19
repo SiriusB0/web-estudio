@@ -8,6 +8,8 @@ import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import MermaidRenderer from "./MermaidRenderer";
 import MultipleChoiceStudyCard from "./MultipleChoiceStudyCard";
+import UnifiedCodeBlock from "./UnifiedCodeBlock";
+import CodeModal from "./CodeModal";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 interface StudyModeProps {
@@ -24,9 +26,12 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
   const [incorrectCount, setIncorrectCount] = useState(0);
   const [doubtCount, setDoubtCount] = useState(0);
   const [studiedCards, setStudiedCards] = useState<Set<number>>(new Set());
-  const [imageModalOpen, setImageModalOpen] = useState(false);
-  const [modalImageUrl, setModalImageUrl] = useState("");
-  const [modalImageName, setModalImageName] = useState("");
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImageName, setSelectedImageName] = useState<string>("");
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [selectedCode, setSelectedCode] = useState<string>("");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("");
 
   useEffect(() => {
     if (isOpen) {
@@ -147,9 +152,15 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
   };
 
   const openImageModal = (imageUrl: string, imageName: string) => {
-    setModalImageUrl(imageUrl);
-    setModalImageName(imageName);
-    setImageModalOpen(true);
+    setSelectedImage(imageUrl);
+    setSelectedImageName(imageName);
+    setShowImageModal(true);
+  };
+
+  const openCodeModal = (code: string, language: string) => {
+    setSelectedCode(code);
+    setSelectedLanguage(language);
+    setShowCodeModal(true);
   };
 
   // Detectar si es dispositivo móvil
@@ -173,20 +184,23 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
           return <MermaidRenderer chart={code} />;
         }
         
-        return (
-          <pre className="bg-slate-700 p-3 rounded text-sm overflow-x-auto">
-            <code className="text-slate-200">{code}</code>
-          </pre>
-        );
+        return <UnifiedCodeBlock 
+          code={code} 
+          language={language} 
+          maxHeight="200px" 
+          showCopyButton={true}
+          showModalButton={true}
+          onOpenModal={openCodeModal}
+        />;
       }
       return (
-        <code className="bg-slate-700 text-slate-200 px-1 py-0.5 rounded text-sm font-mono">
+        <code className="bg-gray-700 text-gray-200 px-1 py-0.5 rounded font-mono text-sm">
           {children}
         </code>
       );
     },
     p: ({ children }: any) => (
-      <p className="text-white mb-2 whitespace-pre-wrap">{children}</p>
+      <p className="text-white mb-2 whitespace-pre-wrap !text-white text-lg">{children}</p>
     ),
     h1: ({ children }: any) => (
       <h1 className="text-xl font-bold text-white mb-3 border-b border-slate-600 pb-2">{children}</h1>
@@ -236,7 +250,7 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
       );
     }
     
-    return <p className="text-white whitespace-pre-wrap">{content}</p>;
+    return <p className="text-white whitespace-pre-wrap !text-white text-lg">{content}</p>;
   };
 
   const isStudyComplete = correctCount + incorrectCount + doubtCount === flashcards.length;
@@ -336,7 +350,15 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
                         <div className="absolute inset-0 backface-hidden">
                           <div className="bg-slate-700 rounded-lg h-full flex flex-col p-6">
                             <h3 className="font-medium text-white mb-4 text-center flex-shrink-0">Pregunta:</h3>
-                            <div className="flex-1 overflow-y-auto scrollbar-hide px-2">
+                            <div 
+                              className="overflow-y-auto px-2" 
+                              style={{ 
+                                height: '280px',
+                                scrollBehavior: 'smooth',
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: '#64748b #334155'
+                              }}
+                            >
                               <div className="w-full">
                                 {currentCard?.front_image_url ? (
                                   <div className="w-full">
@@ -369,7 +391,15 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
                         <div className="absolute inset-0 backface-hidden rotate-y-180">
                           <div className="bg-slate-700 rounded-lg h-full flex flex-col p-6">
                             <h3 className="font-medium text-white mb-4 text-center flex-shrink-0">Respuesta:</h3>
-                            <div className="flex-1 overflow-y-auto scrollbar-hide px-2">
+                            <div 
+                              className="overflow-y-auto px-2" 
+                              style={{ 
+                                height: '280px',
+                                scrollBehavior: 'smooth',
+                                scrollbarWidth: 'thin',
+                                scrollbarColor: '#64748b #334155'
+                              }}
+                            >
                               <div className="w-full">
                                 {currentCard?.back_image_url ? (
                                   <div className="w-full">
@@ -452,10 +482,18 @@ export default function StudyMode({ flashcards, isOpen, onClose, title }: StudyM
 
       {/* Image Modal */}
       <ImageModal
-        isOpen={imageModalOpen}
-        imageUrl={modalImageUrl}
-        imageName={modalImageName}
-        onClose={() => setImageModalOpen(false)}
+        isOpen={showImageModal}
+        imageUrl={selectedImage || ""}
+        imageName={selectedImageName}
+        onClose={() => setShowImageModal(false)}
+      />
+
+      {/* Code Modal */}
+      <CodeModal
+        isOpen={showCodeModal}
+        code={selectedCode}
+        language={selectedLanguage}
+        onClose={() => setShowCodeModal(false)}
       />
     </div>
   );

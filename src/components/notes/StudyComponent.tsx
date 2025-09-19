@@ -50,35 +50,65 @@ export default function StudyComponent({ noteId, studyMode, examConfig, onBack }
       
       // Cargar contenido de la nota con JOIN para verificar carpeta pública
       console.log('🔍 Intentando cargar nota con ID:', noteId);
-      const { data: noteData, error: noteError } = await supabase
+      const { data: noteDataArray, error: noteError } = await supabase
         .from('notes')
         .select(`
-          title, 
+          id,
+          title,
           content_md,
           folder_id,
-          folders!inner(
+          folders (
             id,
             name,
             is_public
           )
         `)
-        .eq('id', noteId)
-        .single();
+        .eq('id', noteId);
 
-      console.log('📄 Datos de nota recibidos:', noteData);
+      // Tomar el primer resultado si hay múltiples
+      const noteData = noteDataArray && noteDataArray.length > 0 ? noteDataArray[0] : null;
+
+      console.log('📊 Resultados de consulta:', {
+        totalResultados: noteDataArray?.length || 0,
+        primerResultado: noteData,
+        todosLosResultados: noteDataArray
+      });
       console.log('❌ Error al cargar nota:', noteError);
 
       if (noteError) {
-        console.error('💥 Error detallado:', noteError);
-        throw noteError;
+        console.error('💥 Error detallado:', {
+          message: noteError.message,
+          details: noteError.details,
+          hint: noteError.hint,
+          code: noteError.code,
+          full: noteError
+        });
+        throw new Error(`Error al cargar nota: ${noteError.message || 'Error desconocido'}`);
+      }
+
+      if (!noteData) {
+        console.error('❌ No se encontró la nota con ID:', noteId);
+        throw new Error('No se encontró la nota especificada');
       }
       
       setNoteTitle(noteData?.title || '');
       setNoteContent(noteData?.content_md || '');
       console.log('✅ Nota cargada - Título:', noteData?.title, 'Contenido length:', noteData?.content_md?.length);
       
-      const allFlashcards = await getFlashcardsForNote(noteId);
-      console.log('Todas las flashcards cargadas:', allFlashcards);
+      let allFlashcards: Flashcard[] = [];
+      try {
+        allFlashcards = await getFlashcardsForNote(noteId);
+        console.log('Todas las flashcards cargadas:', allFlashcards);
+      } catch (flashcardError: any) {
+        console.error('❌ Error específico al cargar flashcards:', {
+          message: flashcardError?.message,
+          details: flashcardError?.details,
+          hint: flashcardError?.hint,
+          code: flashcardError?.code,
+          full: flashcardError
+        });
+        throw new Error(`Error al cargar flashcards: ${flashcardError?.message || 'Error desconocido'}`);
+      }
       
       // Filtrar según el modo de estudio
       let filteredCards: Flashcard[] = [];

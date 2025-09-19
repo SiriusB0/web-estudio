@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { Flashcard } from "@/lib/notes/flashcards";
-import CodeHighlighter from "./CodeHighlighter";
+import UnifiedCodeBlock from "./UnifiedCodeBlock";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import MermaidRenderer from "./MermaidRenderer";
+import CodeModal from "./CodeModal";
 
 interface MultipleChoiceStudyCardProps {
   flashcard: Flashcard;
@@ -15,7 +20,10 @@ interface MultipleChoiceStudyCardProps {
 export default function MultipleChoiceStudyCard({ flashcard, questionNumber, totalQuestions, onAnswer, onNext }: MultipleChoiceStudyCardProps) {
   const [selectedAnswers, setSelectedAnswers] = useState<string[]>([]);
   const [hasAnswered, setHasAnswered] = useState(false);
-  const [showResults, setShowResults] = useState(false);
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [selectedCode, setSelectedCode] = useState<string>("");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Parsear opciones y respuestas correctas
@@ -23,11 +31,17 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
   const correctAnswers = flashcard.correct_answers ? JSON.parse(flashcard.correct_answers) : [];
   const isMultipleAnswer = correctAnswers.length > 1;
 
+  const openCodeModal = (code: string, language: string) => {
+    setSelectedCode(code);
+    setSelectedLanguage(language);
+    setShowCodeModal(true);
+  };
+
   // Resetear estado cuando cambia la flashcard
   useEffect(() => {
     setSelectedAnswers([]);
-    setShowResults(false);
     setHasAnswered(false);
+    setIsCorrect(null);
     setIsProcessing(false);
   }, [flashcard.id, questionNumber]);
 
@@ -57,8 +71,14 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
   const handleSubmit = (answers: string[] = selectedAnswers) => {
     if (hasAnswered) return;
 
+    console.log('handleSubmit llamado con respuestas:', answers);
+    console.log('Respuestas seleccionadas:', selectedAnswers);
+    console.log('Respuestas correctas:', correctAnswers);
+
     setHasAnswered(true);
-    setShowResults(true);
+
+    // Mostrar colores inmediatamente después de confirmar
+    console.log('Colores aplicados - hasAnswered:', true);
 
     // Solo mostrar el resultado, no registrar la respuesta aún
   };
@@ -93,43 +113,36 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
   };
 
   const getOptionStyle = (optionLetter: string) => {
-    if (!showResults) {
-      // Antes de mostrar resultados
+    if (!hasAnswered) {
+      // Antes de responder
       if (selectedAnswers.includes(optionLetter)) {
         return "bg-blue-900/50 border-blue-500 text-white";
+      } else {
+        return "bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700 hover:border-slate-500";
       }
-      return "bg-gray-800/50 border-transparent text-white hover:bg-gray-700/70";
     }
 
-    // Después de mostrar resultados
-    const isCorrect = correctAnswers.includes(optionLetter);
-    const isSelected = selectedAnswers.includes(optionLetter);
-
-    if (isCorrect) {
-      return "bg-green-800/60 border-green-500 text-white"; // Respuesta correcta
-    } else if (isSelected) {
-      return "bg-red-800/60 border-red-500 text-white"; // Respuesta incorrecta seleccionada
+    // Después de responder
+    if (correctAnswers.includes(optionLetter)) {
+      return "bg-green-900/50 border-green-500 text-white";
+    } else if (selectedAnswers.includes(optionLetter)) {
+      return "bg-red-900/50 border-red-500 text-white";
     } else {
-      return "bg-gray-800/50 border-transparent text-gray-400"; // No seleccionada
+      return "bg-slate-800 border-slate-600 text-slate-400";
     }
   };
 
   const getOptionIcon = (optionLetter: string) => {
-    if (!showResults) {
+    if (!hasAnswered) {
       return selectedAnswers.includes(optionLetter) ? "🔘" : "⚪";
     }
 
-    const isCorrect = correctAnswers.includes(optionLetter);
-    const isSelected = selectedAnswers.includes(optionLetter);
-
-    if (isCorrect && isSelected) {
-      return "✅"; // Correcta y seleccionada
-    } else if (isCorrect && !isSelected) {
-      return "💡"; // Correcta pero no seleccionada (faltante)
-    } else if (!isCorrect && isSelected) {
-      return "❌"; // Incorrecta pero seleccionada
+    if (correctAnswers.includes(optionLetter)) {
+      return "✅";
+    } else if (selectedAnswers.includes(optionLetter)) {
+      return "❌";
     } else {
-      return "⚪"; // No seleccionada y no correcta
+      return "⚪";
     }
   };
 
@@ -142,7 +155,7 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
         className="relative mx-auto"
         style={{
           width: isMobile ? '100%' : '700px',
-          height: isMobile ? 'auto' : '570px',
+          height: isMobile ? 'auto' : '670px', // Aumentado de 570px a 670px (100px más)
           padding: isMobile ? '20px' : '0',
           paddingTop: isMobile ? '60px' : '0',
           boxSizing: 'border-box'
@@ -153,7 +166,7 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
           className="bg-[#1C2541]/80 border border-gray-700 rounded-2xl shadow-2xl shadow-black/30 backdrop-blur-sm scrollbar-hide"
           style={{
             width: isMobile ? '100%' : '700px',
-            height: isMobile ? '200px' : '250px',
+            height: isMobile ? '300px' : '350px', // Aumentado de 200px/250px a 300px/350px (100px más)
             padding: isMobile ? '20px' : '25px',
             fontSize: isMobile ? '1.1em' : '1.3em',
             lineHeight: '1.5',
@@ -165,17 +178,78 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
             position: isMobile ? 'relative' : 'absolute',
             top: isMobile ? 'auto' : '40px',
             left: isMobile ? 'auto' : '0',
-            marginBottom: isMobile ? '20px' : '0'
+            marginBottom: isMobile ? '20px' : '0',
+            scrollBehavior: 'smooth'
           }}
         >
-          <CodeHighlighter text={flashcard.question || flashcard.front} />
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeRaw]}
+            components={{
+              code: ({ node, inline, className, children, ...props }: any) => {
+                const match = /language-(\w+)/.exec(className || "");
+                if (!inline && match) {
+                  const language = match[1] as any;
+                  const code = String(children).replace(/\n$/, "");
+                  
+                  if (language === 'mermaid') {
+                    return <MermaidRenderer chart={code} />;
+                  }
+                  
+                  return <UnifiedCodeBlock 
+                    code={code} 
+                    language={language} 
+                    maxHeight="250px" // Aumentado de 150px a 250px (100px más)
+                    showCopyButton={true}
+                    showModalButton={true}
+                    onOpenModal={openCodeModal}
+                    isMultipleChoice={true} // Indica que estamos en una pregunta de múltiple choice
+                  />;
+                }
+                return (
+                  <code className="bg-gray-700 text-gray-200 px-1 py-0.5 rounded font-mono text-sm">
+                    {children}
+                  </code>
+                );
+              },
+              p: ({ children }: any) => (
+                <p className="text-white mb-2 whitespace-pre-wrap !text-white">{children}</p>
+              ),
+              h1: ({ children }: any) => (
+                <h1 className="text-lg font-bold text-white mb-2">{children}</h1>
+              ),
+              h2: ({ children }: any) => (
+                <h2 className="text-base font-semibold text-white mb-2">{children}</h2>
+              ),
+              h3: ({ children }: any) => (
+                <h3 className="text-sm font-medium text-white mb-1">{children}</h3>
+              ),
+              ul: ({ children }: any) => (
+                <ul className="list-disc list-inside text-white mb-2 space-y-1">{children}</ul>
+              ),
+              ol: ({ children }: any) => (
+                <ol className="list-decimal list-inside text-white mb-2 space-y-1">{children}</ol>
+              ),
+              li: ({ children }: any) => (
+                <li className="text-white">{children}</li>
+              ),
+              strong: ({ children }: any) => (
+                <strong className="font-bold text-white">{children}</strong>
+              ),
+              em: ({ children }: any) => (
+                <em className="italic text-white">{children}</em>
+              )
+            }}
+          >
+            {flashcard.question || flashcard.front}
+          </ReactMarkdown>
         </div>
 
         {/* Options Grid - Fijo para desktop, responsive para móvil */}
         <div 
           style={{
             position: isMobile ? 'relative' : 'absolute',
-            top: isMobile ? 'auto' : '310px',
+            top: isMobile ? 'auto' : '410px', // Ajustado de 310px a 410px (100px más)
             left: isMobile ? 'auto' : '0',
             width: isMobile ? '100%' : '700px',
             height: isMobile ? 'auto' : '150px',
@@ -214,10 +288,10 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
                 >
                   {option.text}
                 </span>
-                {showResults && correctAnswers.includes(option.letter) && (
+                {hasAnswered && correctAnswers.includes(option.letter) && (
                   <span className="block mt-1 font-bold text-green-400 text-sm">✓ Correcto</span>
                 )}
-                {showResults && !correctAnswers.includes(option.letter) && selectedAnswers.includes(option.letter) && (
+                {hasAnswered && !correctAnswers.includes(option.letter) && selectedAnswers.includes(option.letter) && (
                   <span className="block mt-1 font-bold text-red-400 text-sm">✗ Incorrecto</span>
                 )}
               </div>
@@ -237,7 +311,7 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
             }`}
             style={{
               position: isMobile ? 'relative' : 'absolute',
-              top: isMobile ? 'auto' : '470px',
+              top: isMobile ? 'auto' : '585px', // Bajado de 570px a 585px (15px más)
               left: isMobile ? 'auto' : '0',
               width: isMobile ? '100%' : '700px',
               height: isMobile ? '45px' : '50px',
@@ -250,37 +324,8 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
         )}
 
         {/* Results message - Fijo para desktop, responsive para móvil */}
-        {showResults && (
+        {hasAnswered && (
           <>
-            <div 
-              className="rounded-lg text-center bg-gray-800/50"
-              style={{
-                position: isMobile ? 'relative' : 'absolute',
-                top: isMobile ? 'auto' : '470px',
-                left: isMobile ? 'auto' : '0',
-                width: isMobile ? '100%' : '700px',
-                height: isMobile ? 'auto' : '40px',
-                padding: isMobile ? '12px' : '10px',
-                boxSizing: 'border-box',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: isMobile ? '15px' : '0'
-              }}
-            >
-              {correctAnswers.length === selectedAnswers.length && 
-               correctAnswers.every((answer: string) => selectedAnswers.includes(answer)) &&
-               selectedAnswers.every((answer: string) => correctAnswers.includes(answer)) ? (
-                <div className="text-green-400 font-medium" style={{ fontSize: isMobile ? '0.9em' : '1em' }}>
-                  ¡Excelente! Respuesta correcta.
-                </div>
-              ) : (
-                <div className="text-red-400 font-medium" style={{ fontSize: isMobile ? '0.9em' : '1em' }}>
-                  Respuesta incorrecta. La respuesta correcta es: {correctAnswers.join(', ')}
-                </div>
-              )}
-            </div>
-            
             <button
               onClick={handleNext}
               disabled={isProcessing}
@@ -291,7 +336,7 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
               }`}
               style={{
                 position: isMobile ? 'relative' : 'absolute',
-                top: isMobile ? 'auto' : '530px',
+                top: isMobile ? 'auto' : '585px', // Ajustado para coincidir con el botón confirmar (585px)
                 left: isMobile ? 'auto' : '0',
                 width: isMobile ? '100%' : '700px',
                 height: isMobile ? '45px' : '50px',
@@ -303,6 +348,14 @@ export default function MultipleChoiceStudyCard({ flashcard, questionNumber, tot
           </>
         )}
       </div>
+
+      {/* Code Modal */}
+      <CodeModal
+        isOpen={showCodeModal}
+        code={selectedCode}
+        language={selectedLanguage}
+        onClose={() => setShowCodeModal(false)}
+      />
     </div>
   );
 }

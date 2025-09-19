@@ -16,6 +16,25 @@ body {
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
 }
 
+/* Fuente Fira Code para bloques de código */
+.fira-code {
+  font-family: var(--font-fira-code), 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace !important;
+}
+
+/* Estilos para bloques de código con el diseño del HTML */
+.code-container-elegant {
+  background: #1e1e2e;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.code-container-elegant:hover {
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+}
+
 /* Eliminar resaltado de línea activa en líneas vacías */
 .cm-activeLine:empty {
   background-color: transparent !important;
